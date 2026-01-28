@@ -1,39 +1,87 @@
 package com.snigdho.aparajito;
 
+import android.content.pm.ActivityInfo;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.PermissionRequest;
+import android.widget.FrameLayout;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 import android.view.View;
-import android.widget.FrameLayout;
 
 public class MainActivity extends AppCompatActivity {
     private ExoPlayer player;
     private PlayerView playerView;
+    private WebView webView;
+    private ValueCallback<Uri[]> mUploadMessage;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    private final Runnable progressUpdater = new Runnable() {
+        @Override
+        public void run() {
+            if (player != null && player.isPlaying()) {
+                long current = player.getCurrentPosition();
+                long total = player.getDuration();
+                webView.evaluateJavascript("updateTimeline(" + current + ", " + total + ")", null);
+            }
+            handler.postDelayed(this, 500);
+        }
+    };
+
+    private final ActivityResultLauncher<String> filePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.GetContent(),
+            uri -> {
+                if (uri != null) {
+                    if (mUploadMessage != null) mUploadMessage.onReceiveValue(new Uri[]{uri});
+                    mUploadMessage = null;
+                    // Auto-switch to Native Mode
+                    playNative(uri.toString());
+                    webView.loadUrl("javascript:handleLocalFileSelection('" + uri.toString() + "')");
+                } else {
+                    if (mUploadMessage != null) mUploadMessage.onReceiveValue(null);
+                }
+            }
+    );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // 1. Initialize the Native ExoPlayer (Bottom Layer)
         player = new ExoPlayer.Builder(this).build();
         playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
-        playerView.setUseController(false); // We use your Web UI for controls
+        playerView.setUseController(false);
 
-        // 2. Setup the Transparent WebView (Top Layer)
-        WebView webView = findViewById(R.id.webview);
-        webView.setBackgroundColor(Color.TRANSPARENT); // Makes the web view see-through
-        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onIsPlayingChanged(boolean isPlaying) {
+                if (isPlaying) handler.post(progressUpdater);
+                else handler.removeCallbacks(progressUpdater);
+                webView.evaluateJavascript("setPlayState(" + isPlaying + ")", null);
+            }
+        });
 
+        webView = findViewById(R.id.webview);
+        webView.setBackgroundColor(Color.TRANSPARENT);
+        
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -41,43 +89,63 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowContentAccess(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
 
-        // Handle permissions for PeerJS voice/video chat
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
-            public void onPermissionRequest(final PermissionRequest request) {
-                request.grant(request.getResources());
+            public void onPermissionRequest(PermissionRequest request) { request.grant(request.getResources()); }
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                if (mUploadMessage != null) mUploadMessage.onReceiveValue(null);
+                mUploadMessage = filePathCallback;
+                filePickerLauncher.launch("video/*");
+                return true;
             }
         });
 
-        // 3. The Bridge: HTML calls these to control the Native Player
         webView.addJavascriptInterface(new Object() {
             @JavascriptInterface
             public void playNative(String uri) {
                 runOnUiThread(() -> {
-                    MediaItem mediaItem = MediaItem.fromUri(uri);
-                    player.setMediaItem(mediaItem);
-                    player.prepare();
-                    player.play();
+                    playerView.setVisibility(View.VISIBLE); // Show Native Player
+                    playNative(uri);
                 });
             }
 
             @JavascriptInterface
-            public void setVideoPosition(int x, int y, int width, int height) {
+            public void hideNative() {
                 runOnUiThread(() -> {
-                    FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) playerView.getLayoutParams();
-                    params.width = width;
-                    params.height = height;
-                    params.leftMargin = x;
-                    params.topMargin = y;
-                    playerView.setLayoutParams(params);
+                    player.pause();
+                    playerView.setVisibility(View.GONE); // Hide Native Player for YouTube
                 });
             }
 
             @JavascriptInterface
-            public void controlVideo(String action) {
+            public void control(String action, long value) {
                 runOnUiThread(() -> {
                     if (action.equals("play")) player.play();
                     else if (action.equals("pause")) player.pause();
+                    else if (action.equals("seek")) player.seekTo(value);
+                });
+            }
+
+            @JavascriptInterface
+            public void toggleRotation(boolean isLandscape) {
+                runOnUiThread(() -> {
+                    setRequestedOrientation(isLandscape ? 
+                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE : 
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                });
+            }
+            
+            @JavascriptInterface
+            public void changeTrack(String type) {
+                runOnUiThread(() -> {
+                    TrackSelectionParameters params = player.getTrackSelectionParameters();
+                    if(type.equals("audio")) {
+                         player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false).build());
+                    } else if (type.equals("sub")) {
+                        boolean isDisabled = params.isTrackTypeDisabled(C.TRACK_TYPE_TEXT);
+                        player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !isDisabled).build());
+                    }
                 });
             }
         }, "AndroidInterface");
@@ -85,11 +153,10 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (player != null) {
-            player.release();
-        }
+    private void playNative(String uri) {
+        MediaItem mediaItem = MediaItem.fromUri(uri);
+        player.setMediaItem(mediaItem);
+        player.prepare();
+        player.play();
     }
 }
