@@ -13,14 +13,12 @@
         
         #app-ui { display: none; flex-direction: column; height: 100%; width: 100%; background: transparent; }
 
-        /* The Masking Strategy: Chat covers the bottom of the native video */
         .video-container { position: relative; width: 100%; height: 40%; background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         
-        /* YouTube Player (Hidden unless used) */
         #yt-player-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; z-index: 5; }
         iframe { width: 100%; height: 100%; border: none; }
 
-        /* CONTROLS OVERLAY (YouTube Style) */
+        /* YOUTUBE STYLE OVERLAY */
         .controls-overlay { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.3); z-index: 10; 
@@ -29,32 +27,23 @@
         }
         .controls-overlay.hidden { opacity: 0; pointer-events: none; }
 
-        /* Top Bar: Exit (Left) ... Mic (Right) */
         .top-bar { display: flex; justify-content: space-between; padding: 15px; background: linear-gradient(rgba(0,0,0,0.8), transparent); }
         .icon-btn { color: white; font-size: 20px; padding: 10px; cursor: pointer; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
         .mic-active { color: #00c853; }
         .mic-inactive { color: #ff3d00; }
 
-        /* Center Play Button */
         .center-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: rgba(0,0,0,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
 
-        /* Bottom Bar: Time ... Seek ... Buttons */
-        .bottom-bar { 
-            display: flex; flex-direction: column; padding: 10px 15px; 
-            background: linear-gradient(transparent, rgba(0,0,0,0.9)); 
-        }
+        .bottom-bar { display: flex; flex-direction: column; padding: 10px 15px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); }
         .seek-wrapper { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 5px; }
         .time-text { font-size: 12px; font-weight: 500; min-width: 80px; }
         
-        /* The Seek Slider */
         input[type=range] { -webkit-appearance: none; flex-grow: 1; height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
-        /* Bottom Right Buttons (YouTube Style) */
         .bottom-actions { display: flex; justify-content: flex-end; gap: 20px; align-items: center; padding-top: 5px; }
         .action-icon { font-size: 18px; cursor: pointer; color: #fff; opacity: 0.9; }
 
-        /* Chat & Room Info */
         .room-indicator { text-align: center; color: #777; font-size: 11px; padding: 5px; background: #000; border-bottom: 1px solid #222; }
         .chat-container { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-sec); min-height: 0; z-index: 20; }
         .chat-history { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
@@ -65,7 +54,6 @@
         .chat-input-area { padding: 10px; background: #000; display: flex; gap: 10px; border-top: 1px solid #222; }
         .chat-input { flex-grow: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #333; background: #111; color: white; font-size: 14px; }
 
-        /* Start Screen */
         #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: flex; align-items: center; justify-content: center; }
         .start-box { text-align: center; width: 80%; max-width: 300px; }
         .input-room { width: 100%; padding: 12px; margin: 15px 0; background: #111; border: 1px solid #333; color: white; text-align: center; border-radius: 6px; }
@@ -84,12 +72,10 @@
     </div>
 
     <div id="app-ui">
-        <div class="video-container" id="video-box" onmousemove="resetTimer()" onclick="resetTimer()" ontouchstart="resetTimer()">
-            
+        <div class="video-container" id="video-box" onclick="resetTimer()">
             <div id="yt-player-container"><div id="yt-player"></div></div>
 
             <div class="controls-overlay" id="overlay">
-                
                 <div class="top-bar">
                     <div class="icon-btn" onclick="fullExit()"><i class="fas fa-arrow-left"></i></div>
                     <div class="icon-btn mic-inactive" id="mic-btn" onclick="toggleMic()"><i class="fas fa-microphone-slash"></i></div>
@@ -106,7 +92,6 @@
                     
                     <div class="bottom-actions">
                         <label class="action-icon" style="margin-right:auto;"><i class="fas fa-folder-open"></i><input type="file" hidden id="fileInput" accept="video/*"></label>
-                        
                         <div class="action-icon" onclick="toggleTrack('audio')"><i class="fas fa-music"></i></div>
                         <div class="action-icon" onclick="toggleTrack('sub')"><i class="fas fa-closed-captioning"></i></div>
                         <div class="action-icon" onclick="toggleNativeFullscreen()"><i class="fas fa-expand"></i></div>
@@ -119,7 +104,7 @@
 
         <div class="chat-container">
             <div class="chat-history" id="chat">
-                <div class="msg sys" id="conn-status">Waiting for connection...</div>
+                <div class="msg sys" id="conn-status">Waiting...</div>
             </div>
             <div class="chat-input-area">
                 <input type="text" id="msgInput" class="chat-input" placeholder="Type..." onkeypress="if(event.key==='Enter') send()">
@@ -137,11 +122,10 @@
     let ytPlayer;
     let hideTimer;
 
-    // --- AUTO HIDE CONTROLS (YouTube Style) ---
+    // --- AUTO HIDE CONTROLS ---
     function resetTimer() {
         document.getElementById('overlay').classList.remove('hidden');
         clearTimeout(hideTimer);
-        // Hide after 3 seconds of inactivity
         hideTimer = setTimeout(() => {
             if(isPlaying) document.getElementById('overlay').classList.add('hidden');
         }, 3000);
@@ -180,7 +164,7 @@
     function setPlayState(playing) {
         isPlaying = playing;
         document.getElementById('play-icon').className = playing ? 'fas fa-pause' : 'fas fa-play';
-        if(playing) resetTimer(); // Start hiding timer if playing
+        if(playing) resetTimer();
     }
 
     // --- MIC LOGIC ---
@@ -206,53 +190,60 @@
         btn.className = isOn ? 'icon-btn mic-active' : 'icon-btn mic-inactive';
     }
 
-    // --- PEER JS FIX ---
+    // --- PEER JS (FIXED) ---
     function enterApp(role) {
-        const room = document.getElementById('room-id').value;
+        const room = document.getElementById('room-id').value.trim();
         if(!room) return alert("Enter Room Name");
+        
         document.getElementById('start-screen').style.display = 'none';
         document.getElementById('app-ui').style.display = 'flex';
         document.getElementById('room-active-text').innerText = `Room Active (${room})`;
-        
-        peer = new Peer(role==='host'?room:null);
-        peer.on('open', id => { 
-            addMsg('sys', 'Waiting for partner...');
-            if(role==='guest') connect(room); 
-        });
-        peer.on('connection', c => { handleConn(c); });
+
+        // HOST LOGIC
+        if (role === 'host') {
+            peer = new Peer(room);
+            peer.on('open', (id) => {
+                addMsg('sys', 'Room Created! Waiting for guest...');
+            });
+            peer.on('connection', (c) => {
+                conn = c;
+                setupReady();
+            });
+            peer.on('error', (err) => alert("Room Name Taken! Try another."));
+        } 
+        // GUEST LOGIC
+        else {
+            peer = new Peer(); // Random ID for guest
+            peer.on('open', (id) => {
+                conn = peer.connect(room);
+                setupReady();
+            });
+        }
+
+        // COMMON EVENTS
         peer.on('call', call => {
             currentCall = call;
             call.answer();
             call.on('stream', s => document.getElementById('remoteAudio').srcObject = s);
         });
-        peer.on('error', e => alert("Connection Error: " + e.type));
     }
 
-    function connect(id) {
-        conn = peer.connect(id);
-        handleConn(conn);
-        setTimeout(() => {
-            // Retry connection if failed
-            if(!conn.open) connect(id);
-        }, 2000);
-    }
-
-    function handleConn(c) {
-        conn = c;
+    function setupReady() {
         conn.on('open', () => {
             document.getElementById('conn-status').innerText = "Connected ❤️";
             document.getElementById('conn-status').style.color = "#00c853";
-            conn.send({type:'chat', msg:'Connected ❤️'});
-            // Auto-Call for voice
-            if(!currentCall) {
+            addMsg('sys', 'Connected to Partner');
+            
+            // Try Voice Call
+            if(peer && !currentCall) {
                 navigator.mediaDevices.getUserMedia({audio:true}).then(s => {
                     localStream = s;
-                    const call = peer.call(peer.id === c.peer ? c.peer : c.provider.id, s); // Trick to get ID
-                    // Actually peerjs calls by ID. Simplification:
-                    // Host calls guest? Or just wait for mic toggle.
-                }).catch(e=>{}); 
+                    peer.call(conn.peer, s);
+                    updateMicUI(true);
+                }).catch(e => console.log("Mic not auto-started"));
             }
         });
+        
         conn.on('data', d => {
             if(d.type==='chat') addMsg('her', d.msg);
             if(d.type==='control') {
@@ -279,7 +270,18 @@
     }
     function toggleTrack(t) { window.AndroidInterface.changeTrack(t); }
     function handleLocalFileSelection(url) { switchMode('native'); if(conn?.open) conn.send({type:'play_url', url: url}); }
-    function send() { let t = document.getElementById('msgInput').value; if(t){ conn?.send({type:'chat', msg:t}); addMsg('me', t); document.getElementById('msgInput').value=''; }}
+    
+    function send() { 
+        let t = document.getElementById('msgInput').value; 
+        if(t && conn && conn.open){ 
+            conn.send({type:'chat', msg:t}); 
+            addMsg('me', t); 
+            document.getElementById('msgInput').value=''; 
+        } else if (!conn || !conn.open) {
+            alert("Not Connected to Room!");
+        }
+    }
+    
     function addMsg(cls, t) { let d=document.createElement('div'); d.className=`msg ${cls}`; d.innerText=t; document.getElementById('chat').append(d); }
     
     // File Picker Trigger
