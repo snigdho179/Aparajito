@@ -59,4 +59,4 @@ This project started as a web-based proof-of-concept (`movie-date-sync`). To pro
 ---
 ## 🛡️ License
 **All Rights Reserved.**
-This code is available for viewing purposes only. You may not copy, modify, or distribute it without express written permission.
+This code is available for viewing purposes only. You may not copy, modify, or distribute it without express written permission. 
