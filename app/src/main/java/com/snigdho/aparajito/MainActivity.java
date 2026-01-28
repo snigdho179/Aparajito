@@ -63,11 +63,10 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // 1. Native Player (Always Fullscreen Background)
         player = new ExoPlayer.Builder(this).build();
         playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
-        playerView.setUseController(false); 
+        playerView.setUseController(false);
 
         player.addListener(new Player.Listener() {
             @Override
@@ -78,7 +77,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 2. WebView (Transparent Overlay)
         webView = findViewById(R.id.webview);
         webView.setBackgroundColor(Color.TRANSPARENT);
         
@@ -101,7 +99,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 3. Bridge Interface
         webView.addJavascriptInterface(new Object() {
             @JavascriptInterface
             public void playNative(String uri) {
