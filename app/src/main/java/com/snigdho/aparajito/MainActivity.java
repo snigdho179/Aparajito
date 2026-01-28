@@ -27,6 +27,9 @@ public class MainActivity extends AppCompatActivity {
 
         // 2. Setup the WebView for your PeerJS chat and UI
         webView = findViewById(R.id.webview);
+        webView.getSettings().setAllowFileAccess(true);
+        webView.getSettings().setAllowContentAccess(true);
+        webView.getSettings().setAllowFileAccessFromFileURLs(true);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
