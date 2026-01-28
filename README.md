@@ -10,6 +10,12 @@ I realized the problem was the "Middleman." Most apps route video data through t
 
 ---
 
+## 🛠️ Developmental Journey
+This project evolved from a web-based proof-of-concept ([movie-date-sync](https://github.com/snigdho179/movie-date-sync)). To provide a "Pro" experience, I migrated the logic into a native Android environment to unlock better hardware acceleration and lower latency using the **ExoPlayer** engine.
+
+---
+
+
 ## 🚀 Why Aparajito?
 
 * **Zero-Buffering Architecture:** Unlike traditional streaming apps, Aparajito uses **Peer-to-Peer (P2P)** technology. The video data flows directly between devices, eliminating server-side bottlenecks.
