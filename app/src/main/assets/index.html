@@ -7,18 +7,20 @@
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --bg: #000; --bg-sec: #0f0f0f; --accent: #E50914; --text: #fff; }
+        /* ORIGINAL THEME RESTORED */
+        :root { --bg: #000; --bg-sec: #1a1a1a; --accent: #d81b60; --text: #e0e0e0; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
         body, html { margin: 0; background: transparent !important; color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         #app-ui { display: none; flex-direction: column; height: 100%; width: 100%; background: transparent; }
 
-        .video-container { position: relative; width: 100%; height: 40%; background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        /* Video Area (Transparent so native video shows through) */
+        .video-container { position: relative; width: 100%; height: 100%; background: transparent; display: flex; align-items: center; justify-content: center; }
         
         #yt-player-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; z-index: 5; }
         iframe { width: 100%; height: 100%; border: none; }
 
-        /* YOUTUBE STYLE OVERLAY */
+        /* CONTROLS OVERLAY */
         .controls-overlay { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.3); z-index: 10; 
@@ -37,13 +39,13 @@
         .bottom-bar { display: flex; flex-direction: column; padding: 10px 15px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); }
         .seek-wrapper { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 5px; }
         .time-text { font-size: 12px; font-weight: 500; min-width: 80px; }
-        
         input[type=range] { -webkit-appearance: none; flex-grow: 1; height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
         .bottom-actions { display: flex; justify-content: flex-end; gap: 20px; align-items: center; padding-top: 5px; }
         .action-icon { font-size: 18px; cursor: pointer; color: #fff; opacity: 0.9; }
 
+        /* CHAT UI */
         .room-indicator { text-align: center; color: #777; font-size: 11px; padding: 5px; background: #000; border-bottom: 1px solid #222; }
         .chat-container { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-sec); min-height: 0; z-index: 20; }
         .chat-history { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
@@ -54,20 +56,24 @@
         .chat-input-area { padding: 10px; background: #000; display: flex; gap: 10px; border-top: 1px solid #222; }
         .chat-input { flex-grow: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #333; background: #111; color: white; font-size: 14px; }
 
+        /* START SCREEN (Exact Match to Web) */
         #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: flex; align-items: center; justify-content: center; }
-        .start-box { text-align: center; width: 80%; max-width: 300px; }
-        .input-room { width: 100%; padding: 12px; margin: 15px 0; background: #111; border: 1px solid #333; color: white; text-align: center; border-radius: 6px; }
-        .btn-main { width: 100%; padding: 12px; margin-top: 5px; background: var(--accent); border: none; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .start-box { text-align: center; width: 85%; max-width: 320px; background: #111; padding: 30px; border-radius: 12px; border: 1px solid #333; }
+        .input-room { width: 100%; padding: 12px; margin: 15px 0; background: #222; border: 1px solid #444; color: white; text-align: center; border-radius: 6px; font-size: 16px; }
+        .btn-main { width: 100%; padding: 14px; margin-bottom: 10px; background: var(--accent); border: none; color: white; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .btn-guest { background: #333; border: 1px solid #555; }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
         <div class="start-box">
-            <h2 style="color:var(--accent); margin-bottom: 5px;">Aparajito ❤️</h2>
-            <input type="text" id="room-id" class="input-room" placeholder="Enter Room Name">
+            <h2 style="color:var(--accent); margin-top:0;">Aparajito ❤️</h2>
+            <p style="color:#888; font-size:13px;">Enter Room Name:</p>
+            <input type="text" id="room-id" class="input-room" placeholder="e.g. love123">
             <button class="btn-main" onclick="enterApp('host')">Create Room</button>
-            <button class="btn-main" style="background:#222; border:1px solid #333;" onclick="enterApp('guest')">Join Room</button>
+            <button class="btn-main btn-guest" onclick="enterApp('guest')">Join Room</button>
+            <p style="font-size: 10px; color: #444; margin-top: 25px; letter-spacing: 1px; text-transform: uppercase;">CRAFTED BY SNIGDHO FOR ANUSKA</p>
         </div>
     </div>
 
@@ -80,16 +86,13 @@
                     <div class="icon-btn" onclick="fullExit()"><i class="fas fa-arrow-left"></i></div>
                     <div class="icon-btn mic-inactive" id="mic-btn" onclick="toggleMic()"><i class="fas fa-microphone-slash"></i></div>
                 </div>
-
                 <div class="center-play" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></div>
-
                 <div class="bottom-bar">
                     <div class="seek-wrapper">
                         <span class="time-text" id="curr-time">00:00</span>
                         <input type="range" id="seek-bar" min="0" value="0" step="1" oninput="userSeeking(this.value)" onchange="userFinishedSeek(this.value)">
                         <span class="time-text" id="total-time">00:00</span>
                     </div>
-                    
                     <div class="bottom-actions">
                         <label class="action-icon" style="margin-right:auto;"><i class="fas fa-folder-open"></i><input type="file" hidden id="fileInput" accept="video/*"></label>
                         <div class="action-icon" onclick="toggleTrack('audio')"><i class="fas fa-music"></i></div>
@@ -101,7 +104,6 @@
         </div>
 
         <div class="room-indicator" id="room-active-text">Room Active (...)</div>
-
         <div class="chat-container">
             <div class="chat-history" id="chat">
                 <div class="msg sys" id="conn-status">Waiting...</div>
@@ -119,16 +121,17 @@
     let peer, conn, localStream, currentCall;
     let isLandscape = false, isPlaying = false, isDragging = false;
     let mode = 'native'; 
-    let ytPlayer;
-    let hideTimer;
+    let ytPlayer, hideTimer;
 
-    // --- AUTO HIDE CONTROLS ---
+    // --- LOGIC TO DETECT IF WE ARE IN TOP OR BOTTOM WEBVIEW ---
+    // If height is small (chat view), hide video controls. If large (overlay), hide chat.
+    // However, since we load same HTML, we rely on Android Layout to hide/show parts.
+    // CSS handles visual layout.
+
     function resetTimer() {
         document.getElementById('overlay').classList.remove('hidden');
         clearTimeout(hideTimer);
-        hideTimer = setTimeout(() => {
-            if(isPlaying) document.getElementById('overlay').classList.add('hidden');
-        }, 3000);
+        hideTimer = setTimeout(() => { if(isPlaying) document.getElementById('overlay').classList.add('hidden'); }, 3000);
     }
 
     // --- YOUTUBE API ---
@@ -167,7 +170,6 @@
         if(playing) resetTimer();
     }
 
-    // --- MIC LOGIC ---
     async function toggleMic() {
         if(!localStream) {
             try {
@@ -190,7 +192,6 @@
         btn.className = isOn ? 'icon-btn mic-active' : 'icon-btn mic-inactive';
     }
 
-    // --- PEER JS (FIXED) ---
     function enterApp(role) {
         const room = document.getElementById('room-id').value.trim();
         if(!room) return alert("Enter Room Name");
@@ -199,28 +200,15 @@
         document.getElementById('app-ui').style.display = 'flex';
         document.getElementById('room-active-text').innerText = `Room Active (${room})`;
 
-        // HOST LOGIC
         if (role === 'host') {
             peer = new Peer(room);
-            peer.on('open', (id) => {
-                addMsg('sys', 'Room Created! Waiting for guest...');
-            });
-            peer.on('connection', (c) => {
-                conn = c;
-                setupReady();
-            });
-            peer.on('error', (err) => alert("Room Name Taken! Try another."));
-        } 
-        // GUEST LOGIC
-        else {
-            peer = new Peer(); // Random ID for guest
-            peer.on('open', (id) => {
-                conn = peer.connect(room);
-                setupReady();
-            });
+            peer.on('open', (id) => { addMsg('sys', 'Room Created!'); });
+            peer.on('connection', (c) => { conn = c; setupReady(); });
+            peer.on('error', (err) => alert("Room Taken!"));
+        } else {
+            peer = new Peer();
+            peer.on('open', (id) => { conn = peer.connect(room); setupReady(); });
         }
-
-        // COMMON EVENTS
         peer.on('call', call => {
             currentCall = call;
             call.answer();
@@ -232,15 +220,13 @@
         conn.on('open', () => {
             document.getElementById('conn-status').innerText = "Connected ❤️";
             document.getElementById('conn-status').style.color = "#00c853";
-            addMsg('sys', 'Connected to Partner');
-            
-            // Try Voice Call
+            addMsg('sys', 'Connected');
             if(peer && !currentCall) {
                 navigator.mediaDevices.getUserMedia({audio:true}).then(s => {
                     localStream = s;
                     peer.call(conn.peer, s);
                     updateMicUI(true);
-                }).catch(e => console.log("Mic not auto-started"));
+                }).catch(e=>{}); 
             }
         });
         
@@ -255,7 +241,6 @@
         });
     }
 
-    // --- UTILS ---
     function fullExit() { location.reload(); }
     function formatTime(ms) { let s = Math.floor(ms/1000), m = Math.floor(s/60); return `${m}:${(s%60)<10?'0'+(s%60):(s%60)}`; }
     function userSeeking(val) { isDragging = true; document.getElementById('curr-time').innerText = formatTime(val); }
@@ -264,27 +249,18 @@
     function toggleNativeFullscreen() {
         isLandscape = !isLandscape;
         window.AndroidInterface.toggleRotation(isLandscape);
-        document.querySelector('.chat-container').style.display = isLandscape ? 'none' : 'flex';
-        document.querySelector('.room-indicator').style.display = isLandscape ? 'none' : 'block';
-        document.getElementById('video-box').style.height = isLandscape ? '100%' : '40%';
+        // UI Layout is handled by Android changing the visibility of the Chat WebView
     }
     function toggleTrack(t) { window.AndroidInterface.changeTrack(t); }
     function handleLocalFileSelection(url) { switchMode('native'); if(conn?.open) conn.send({type:'play_url', url: url}); }
     
     function send() { 
         let t = document.getElementById('msgInput').value; 
-        if(t && conn && conn.open){ 
-            conn.send({type:'chat', msg:t}); 
-            addMsg('me', t); 
-            document.getElementById('msgInput').value=''; 
-        } else if (!conn || !conn.open) {
-            alert("Not Connected to Room!");
-        }
+        if(t && conn && conn.open){ conn.send({type:'chat', msg:t}); addMsg('me', t); document.getElementById('msgInput').value=''; }
     }
     
     function addMsg(cls, t) { let d=document.createElement('div'); d.className=`msg ${cls}`; d.innerText=t; document.getElementById('chat').append(d); }
     
-    // File Picker Trigger
     document.getElementById('fileInput').onchange = (e) => {}; 
 </script>
 </body>
