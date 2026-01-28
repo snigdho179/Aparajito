@@ -10,17 +10,18 @@
         /* ORIGINAL THEME RESTORED */
         :root { --bg: #000; --bg-sec: #1a1a1a; --accent: #d81b60; --text: #e0e0e0; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
-        body, html { margin: 0; background: transparent !important; color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        body, html { margin: 0; background: transparent !important; color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
         #app-ui { display: none; flex-direction: column; height: 100%; width: 100%; background: transparent; }
 
-        /* Video Area (Transparent so native video shows through) */
-        .video-container { position: relative; width: 100%; height: 100%; background: transparent; display: flex; align-items: center; justify-content: center; }
+        /* Video Area: Exactly 40% height to match Java code */
+        .video-container { position: relative; width: 100%; height: 40%; background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         
         #yt-player-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; z-index: 5; }
         iframe { width: 100%; height: 100%; border: none; }
 
-        /* CONTROLS OVERLAY */
+        /* YOUTUBE STYLE OVERLAY */
         .controls-overlay { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.3); z-index: 10; 
@@ -45,7 +46,6 @@
         .bottom-actions { display: flex; justify-content: flex-end; gap: 20px; align-items: center; padding-top: 5px; }
         .action-icon { font-size: 18px; cursor: pointer; color: #fff; opacity: 0.9; }
 
-        /* CHAT UI */
         .room-indicator { text-align: center; color: #777; font-size: 11px; padding: 5px; background: #000; border-bottom: 1px solid #222; }
         .chat-container { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-sec); min-height: 0; z-index: 20; }
         .chat-history { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
@@ -123,18 +123,12 @@
     let mode = 'native'; 
     let ytPlayer, hideTimer;
 
-    // --- LOGIC TO DETECT IF WE ARE IN TOP OR BOTTOM WEBVIEW ---
-    // If height is small (chat view), hide video controls. If large (overlay), hide chat.
-    // However, since we load same HTML, we rely on Android Layout to hide/show parts.
-    // CSS handles visual layout.
-
     function resetTimer() {
         document.getElementById('overlay').classList.remove('hidden');
         clearTimeout(hideTimer);
         hideTimer = setTimeout(() => { if(isPlaying) document.getElementById('overlay').classList.add('hidden'); }, 3000);
     }
 
-    // --- YOUTUBE API ---
     var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
     function onYouTubeIframeAPIReady() {
@@ -146,7 +140,6 @@
         else { document.getElementById('yt-player-container').style.display = 'none'; if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); }
     }
 
-    // --- CONTROLS ---
     function updateTimeline(current, total) {
         if (!isDragging && mode === 'native') {
             document.getElementById('seek-bar').max = total;
@@ -249,7 +242,9 @@
     function toggleNativeFullscreen() {
         isLandscape = !isLandscape;
         window.AndroidInterface.toggleRotation(isLandscape);
-        // UI Layout is handled by Android changing the visibility of the Chat WebView
+        document.querySelector('.chat-container').style.display = isLandscape ? 'none' : 'flex';
+        document.querySelector('.room-indicator').style.display = isLandscape ? 'none' : 'block';
+        document.getElementById('video-box').style.height = isLandscape ? '100%' : '40%';
     }
     function toggleTrack(t) { window.AndroidInterface.changeTrack(t); }
     function handleLocalFileSelection(url) { switchMode('native'); if(conn?.open) conn.send({type:'play_url', url: url}); }
