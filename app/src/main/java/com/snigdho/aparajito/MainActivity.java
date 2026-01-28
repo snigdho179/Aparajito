@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -23,7 +24,6 @@ import androidx.media3.common.Player;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
-import android.view.View;
 
 public class MainActivity extends AppCompatActivity {
     private ExoPlayer player;
@@ -32,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
     private ValueCallback<Uri[]> mUploadMessage;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
+    // 1. Timeline Sync Engine
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
@@ -44,13 +45,13 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    // 2. Modern File Picker (Android 13+ Compatible)
     private final ActivityResultLauncher<String> filePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.GetContent(),
             uri -> {
                 if (uri != null) {
                     if (mUploadMessage != null) mUploadMessage.onReceiveValue(new Uri[]{uri});
                     mUploadMessage = null;
-                    // Auto-switch to Native Mode
                     playNative(uri.toString());
                     webView.loadUrl("javascript:handleLocalFileSelection('" + uri.toString() + "')");
                 } else {
@@ -65,10 +66,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        // 3. Initialize Native Player
         player = new ExoPlayer.Builder(this).build();
         playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
-        playerView.setUseController(false);
+        playerView.setUseController(false); // HTML handles controls
 
         player.addListener(new Player.Listener() {
             @Override
@@ -79,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // 4. Setup Transparent WebView
         webView = findViewById(R.id.webview);
         webView.setBackgroundColor(Color.TRANSPARENT);
         
@@ -101,11 +104,12 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // 5. The "Pro" Bridge Interface
         webView.addJavascriptInterface(new Object() {
             @JavascriptInterface
             public void playNative(String uri) {
                 runOnUiThread(() -> {
-                    playerView.setVisibility(View.VISIBLE); // Show Native Player
+                    playerView.setVisibility(View.VISIBLE); // Hybrid: Show Native
                     playNative(uri);
                 });
             }
@@ -114,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
             public void hideNative() {
                 runOnUiThread(() -> {
                     player.pause();
-                    playerView.setVisibility(View.GONE); // Hide Native Player for YouTube
+                    playerView.setVisibility(View.GONE); // Hybrid: Hide Native for YouTube
                 });
             }
 
@@ -141,10 +145,14 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     TrackSelectionParameters params = player.getTrackSelectionParameters();
                     if(type.equals("audio")) {
-                         player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false).build());
+                         // Fixes "No Audio" issues
+                         player.setTrackSelectionParameters(params.buildUpon()
+                                 .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false).build());
                     } else if (type.equals("sub")) {
-                        boolean isDisabled = params.isTrackTypeDisabled(C.TRACK_TYPE_TEXT);
-                        player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !isDisabled).build());
+                        // FIXED: Correct way to toggle subtitles in Media3 1.2.1
+                        boolean isDisabled = params.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT);
+                        player.setTrackSelectionParameters(params.buildUpon()
+                                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !isDisabled).build());
                     }
                 });
             }
