@@ -7,194 +7,250 @@
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --bg: #000; --bg-sec: #1a1a1a; --accent: #d81b60; --text: #e0e0e0; }
+        :root { --bg: #000; --bg-sec: #0f0f0f; --accent: #E50914; --text: #fff; --sub-text: #555; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+        body, html { margin: 0; background: transparent !important; color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #app-ui { display: none; flex-direction: column; height: 100%; width: 100%; background: transparent; }
+
+        /* UI Components */
+        header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #000; border-bottom: 1px solid #222; }
+        .app-title { color: var(--accent); font-weight: bold; font-size: 16px; }
+        .status-badge { background: #222; color: #aaa; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-right: 5px; }
+        .status-badge.green { background: #00c853; color: #000; font-weight: bold; }
+
+        .video-container { position: relative; width: 100%; height: 40%; background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-bottom: 1px solid #111; }
         
-        /* Step 1: Transparency for the Layered Look */
-        body, html { 
-            margin: 0; background: transparent !important; color: var(--text); font-family: sans-serif; 
-            display: flex; flex-direction: column; 
-            height: 100vh; height: 100dvh; 
-            overflow: hidden; 
-        }
+        /* YouTube Player Container (Hidden by default) */
+        #yt-player-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; z-index: 5; }
+        iframe { width: 100%; height: 100%; border: none; }
 
-        #start-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 3000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
+        /* Controls Overlay */
+        .controls-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column; justify-content: space-between; padding: 10px; z-index: 10; pointer-events: none; }
+        .video-container:hover .controls-overlay, .video-container:active .controls-overlay { opacity: 1; pointer-events: auto; }
+        /* Make overlay clickable only on buttons */
+        .top-controls, .bottom-controls, .center-play { pointer-events: auto; }
 
-        #app-ui { 
-            display: none; flex-direction: column; height: 100%; width: 100%; 
-            background: transparent !important; /* See through to the native player */
-        }
+        .center-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; cursor: pointer; border: 2px solid rgba(255,255,255,0.2); }
+        .top-controls { display: flex; justify-content: flex-end; gap: 20px; padding: 10px; }
+        .icon-btn { color: white; font-size: 18px; cursor: pointer; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .bottom-controls { padding: 10px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); }
+        .timeline-box { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .time-text { font-size: 11px; color: #ddd; min-width: 35px; }
+        input[type=range] { -webkit-appearance: none; flex-grow: 1; height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
-        .video-container {
-            position: relative; width: 100%; height: 40%; 
-            background: transparent !important; /* Hollow box for ExoPlayer */
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-            border-bottom: 1px solid #333;
-        }
-
-        /* Hide the old HTML video tag but keep it as a placeholder */
-        video { width: 100%; height: 100%; object-fit: contain; opacity: 0; pointer-events: none; }
-
-        .chat-container {
-            flex-grow: 1; display: flex; flex-direction: column; 
-            background: var(--bg-sec); min-height: 0; /* Opaque chat area */
-            overflow: hidden; 
-        }
-        
-        /* Rest of your existing CSS remains the same */
-        .start-box { text-align: center; width: 85%; max-width: 320px; background: #111; padding: 30px; border-radius: 12px; border: 1px solid #333; }
-        .input-room { width: 100%; padding: 12px; margin: 15px 0; border-radius: 6px; border: 1px solid #444; background: #222; color: white; text-align: center; font-size: 16px; }
-        .big-btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        .btn-host { background: var(--accent); color: white; }
-        .btn-guest { background: #333; color: white; border: 1px solid #555; }
-        header { height: 40px; background: var(--bg-sec); border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; flex-shrink: 0; }
-        .status-pill { font-size: 11px; padding: 4px 8px; background: #333; border-radius: 4px; }
-        .status-pill.green { background: #00c853; color: #000; font-weight: bold; }
-        .btn-exit { background: #333; color: #aaa; border: 1px solid #444; margin-left: 10px; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .controls { position: absolute; top: 10px; right: 10px; display: flex; gap: 10px; z-index: 10; }
-        .c-btn { background: rgba(0,0,0,0.6); border: 1px solid #555; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .c-btn.wide { width: auto; padding: 0 15px; border-radius: 20px; font-size: 12px; }
-        .c-btn.mic-on { background: var(--accent); border-color: var(--accent); } 
-        .c-btn.mic-off { background: #ff4444; border-color: red; }
+        .room-indicator { text-align: center; color: var(--sub-text); font-size: 11px; padding: 8px 0; background: #000; letter-spacing: 0.5px; border-bottom: 1px solid #111; }
+        .chat-container { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-sec); min-height: 0; }
         .chat-history { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
         .msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; max-width: 85%; }
-        .msg.sys { align-self: center; color: #777; font-size: 12px; }
         .msg.me { align-self: flex-end; background: var(--accent); color: white; }
-        .msg.her { align-self: flex-start; background: #333; color: #eee; }
-        .chat-input-area { padding: 10px; background: #000; display: flex; gap: 10px; border-top: 1px solid #333; flex-shrink: 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
-        .chat-input { flex-grow: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #444; background: #222; color: white; }
-        .send-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .msg.her { align-self: flex-start; background: #222; color: #eee; border: 1px solid #333; }
+        .chat-input-area { padding: 10px; background: #000; display: flex; gap: 10px; border-top: 1px solid #222; }
+        .chat-input { flex-grow: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #333; background: #111; color: white; font-size: 14px; }
+        
+        /* YouTube Popup */
+        #yt-popup { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 20px; border: 1px solid #444; border-radius: 10px; z-index: 100; width: 80%; max-width: 300px; text-align: center; }
+        #yt-input { width: 100%; padding: 8px; margin-bottom: 10px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
+
+        #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: flex; align-items: center; justify-content: center; }
+        .start-box { text-align: center; width: 80%; max-width: 300px; }
+        .input-room { width: 100%; padding: 12px; margin: 15px 0; background: #111; border: 1px solid #333; color: white; text-align: center; border-radius: 6px; }
+        .btn-main { width: 100%; padding: 12px; margin-top: 5px; background: var(--accent); border: none; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
         <div class="start-box">
-            <h2 style="color:var(--accent); margin-top:0;">Aparajito ❤️</h2>
-            <input type="text" id="room-id" class="input-room" placeholder="Secret Room Name">
-            <button class="big-btn btn-host" onclick="enterApp('host')">Create Room</button>
-            <button class="big-btn btn-guest" onclick="enterApp('guest')">Join Room</button>
+            <h2 style="color:var(--accent); margin-bottom: 5px;">Aparajito ❤️</h2>
+            <input type="text" id="room-id" class="input-room" placeholder="Enter Room Name">
+            <button class="btn-main" onclick="enterApp('host')">Create Room</button>
+            <button class="btn-main" style="background:#222; border:1px solid #333;" onclick="enterApp('guest')">Join Room</button>
         </div>
     </div>
 
     <div id="app-ui">
         <header>
-            <div style="font-weight:bold; color:var(--accent);">Aparajito ❤️</div>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <div class="status-pill" id="status">Disconnected</div>
-                <button class="btn-exit" onclick="fullExit()"><i class="fas fa-sign-out-alt"></i></button>
+            <div class="app-title">Aparajito ❤️</div>
+            <div style="display:flex; align-items: center;">
+                <div class="status-badge" id="conn-status">Disconnected</div>
             </div>
         </header>
 
         <div class="video-container" id="video-box">
-            <video id="vid"></video>
-            
-            <div class="controls">
-                <label class="c-btn wide"><i class="fas fa-folder-open"></i><input type="file" id="fileInput" style="display:none" accept="video/*"></label>
-                <div class="c-btn" onclick="toggleNativeFullscreen()"><i class="fas fa-expand"></i></div>
-                <div class="c-btn mic-on" id="muteBtn" onclick="toggleHardMute()"><i class="fas fa-microphone"></i></div>
+            <div id="yt-player-container"><div id="yt-player"></div></div>
+
+            <div class="controls-overlay" id="overlay">
+                <div class="top-controls">
+                    <label class="icon-btn"><i class="fas fa-folder-open"></i><input type="file" hidden id="fileInput" accept="video/*"></label>
+                    <div class="icon-btn" onclick="showYTPopup()"><i class="fab fa-youtube"></i></div>
+                    <div class="icon-btn" onclick="toggleTrack('audio')"><i class="fas fa-music"></i></div>
+                    <div class="icon-btn" onclick="toggleTrack('sub')"><i class="fas fa-closed-captioning"></i></div>
+                    <div class="icon-btn" onclick="toggleNativeFullscreen()"><i class="fas fa-expand"></i></div>
+                </div>
+                <div class="center-play" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></div>
+                <div class="bottom-controls">
+                    <div class="timeline-box">
+                        <span class="time-text" id="curr-time">00:00</span>
+                        <input type="range" id="seek-bar" min="0" value="0" step="1" oninput="userSeeking(this.value)" onchange="userFinishedSeek(this.value)">
+                        <span class="time-text" id="total-time">00:00</span>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <div class="room-indicator" id="room-active-text">Room Active (...)</div>
 
         <div class="chat-container">
             <div class="chat-history" id="chat"></div>
             <div class="chat-input-area">
                 <input type="text" id="msgInput" class="chat-input" placeholder="Type..." onkeypress="if(event.key==='Enter') send()">
-                <button class="send-btn" onclick="send()"><i class="fas fa-paper-plane"></i></button>
+                <button class="send-btn" style="background:var(--accent); border:none; color:white; width:40px; height:40px; border-radius:50%;" onclick="send()"><i class="fas fa-paper-plane"></i></button>
             </div>
+        </div>
+
+        <div id="yt-popup">
+            <h4 style="color:white; margin-top:0;">Paste YouTube Link</h4>
+            <input type="text" id="yt-input" placeholder="https://youtu.be/...">
+            <button class="btn-main" onclick="loadYTFromInput()" style="padding:8px;">Load</button>
+            <button class="btn-main" onclick="document.getElementById('yt-popup').style.display='none'" style="background:#333; margin-top:10px; padding:8px;">Cancel</button>
         </div>
     </div>
 
 <script>
-    let peer, conn, localStream, isFullscreen = false;
-    const vidPlaceholder = document.getElementById('vid');
+    let peer, conn, isLandscape = false, isPlaying = false, isDragging = false;
+    let mode = 'native'; // 'native' or 'youtube'
+    let ytPlayer;
 
-    // Step 2: Logic to sync Native Player position with the HTML video box
-    function syncNativePlayerPosition() {
-        if (window.AndroidInterface && !isFullscreen) {
-            const rect = vidPlaceholder.getBoundingClientRect();
-            // Tell Android where to put the ExoPlayer
-            window.AndroidInterface.setVideoPosition(
-                Math.round(rect.left), 
-                Math.round(rect.top), 
-                Math.round(rect.width), 
-                Math.round(rect.height)
-            );
-        }
-    }
+    // --- YouTube Setup ---
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-    // Handle the Maximize button
-    function toggleNativeFullscreen() {
-        isFullscreen = !isFullscreen;
-        if (window.AndroidInterface) {
-            if (isFullscreen) {
-                // Maximize native player to fill whole screen
-                window.AndroidInterface.setVideoPosition(0, 0, window.innerWidth, window.innerHeight);
-                document.querySelector('header').style.display = 'none';
-                document.querySelector('.chat-container').style.display = 'none';
-                document.getElementById('video-box').style.height = '100%';
-            } else {
-                document.querySelector('header').style.display = 'flex';
-                document.querySelector('.chat-container').style.display = 'flex';
-                document.getElementById('video-box').style.height = '40%';
-                setTimeout(syncNativePlayerPosition, 100);
-            }
-        }
-    }
-
-    window.addEventListener('resize', syncNativePlayerPosition);
-    setInterval(syncNativePlayerPosition, 1000); // Fail-safe sync
-
-    function enterApp(role) {
-        const room = document.getElementById('room-id').value.trim().toLowerCase();
-        if(!room) return;
-        document.getElementById('start-screen').style.display = 'none';
-        document.getElementById('app-ui').style.display = 'flex';
-        
-        peer = new Peer(role === 'host' ? room : null);
-        peer.on('open', () => { if(role === 'guest') connect(room); });
-        peer.on('connection', (c) => handleConn(c));
-        syncNativePlayerPosition();
-    }
-
-    function handleConn(c) {
-        conn = c;
-        conn.on('data', (d) => {
-            if(d.type === 'play') { window.AndroidInterface.playNative(d.uri); }
-            if(d.type === 'control') { window.AndroidInterface.controlVideo(d.action); }
-            if(d.type === 'chat') { addMsg('her', d.msg); }
+    function onYouTubeIframeAPIReady() {
+        ytPlayer = new YT.Player('yt-player', {
+            height: '100%', width: '100%',
+            playerVars: { 'autoplay': 0, 'controls': 0, 'rel': 0 },
+            events: { 'onStateChange': onYTStateChange }
         });
     }
 
-    // Step 3: Route local files to ExoPlayer instead of HTML
-    document.getElementById('fileInput').onchange = (e) => {
-        const file = e.target.files[0];
-        const uri = URL.createObjectURL(file);
-        if (window.AndroidInterface) {
-            window.AndroidInterface.playNative(uri); // Play natively
-            if(conn && conn.open) conn.send({type:'play', uri: uri});
+    function switchMode(newMode) {
+        mode = newMode;
+        if(mode === 'youtube') {
+            document.getElementById('yt-player-container').style.display = 'block';
+            window.AndroidInterface.hideNative(); // Hide Native Player
+        } else {
+            document.getElementById('yt-player-container').style.display = 'none';
+            if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
         }
-    };
-
-    function send() {
-        const i = document.getElementById('msgInput');
-        if(!i.value.trim()) return;
-        if(conn && conn.open) conn.send({type:'chat', msg: i.value});
-        addMsg('me', i.value); i.value = '';
     }
 
-    function addMsg(cls, txt) {
-        const c = document.getElementById('chat');
-        const d = document.createElement('div');
-        d.className = `msg ${cls}`; d.innerText = txt;
-        c.appendChild(d); c.scrollTop = c.scrollHeight;
+    // --- Unified Controls ---
+    function updateTimeline(current, total) {
+        if (!isDragging && mode === 'native') {
+            document.getElementById('seek-bar').max = total;
+            document.getElementById('seek-bar').value = current;
+            document.getElementById('curr-time').innerText = formatTime(current);
+            document.getElementById('total-time').innerText = formatTime(total);
+        }
     }
 
-    function fullExit() { location.reload(); }
+    function togglePlay() {
+        if(mode === 'native') {
+            window.AndroidInterface.control(isPlaying ? 'pause' : 'play', 0);
+            if(conn?.open) conn.send({type:'control', action: isPlaying ? 'pause' : 'play'});
+        } else {
+            // YouTube Mode Logic
+            if(ytPlayer.getPlayerState() === 1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+        }
+    }
+
+    function setPlayState(playing) {
+        isPlaying = playing;
+        document.getElementById('play-icon').className = playing ? 'fas fa-pause' : 'fas fa-play';
+    }
+
+    // --- PeerJS Sync ---
+    function enterApp(role) {
+        const room = document.getElementById('room-id').value;
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('app-ui').style.display = 'flex';
+        document.getElementById('room-active-text').innerText = `Room Active (${room})`;
+        
+        peer = new Peer(role==='host'?room:null);
+        peer.on('open', id => { if(role==='guest') connect(room); });
+        peer.on('connection', c => { conn = c; setupConn(); });
+    }
+
+    function setupConn() {
+        conn.on('open', () => {
+            conn.send({type:'chat', msg:'Connected ❤️'});
+            document.getElementById('conn-status').innerText = 'Connected';
+            document.getElementById('conn-status').className = 'status-badge green';
+        });
+        conn.on('data', d => {
+            if(d.type==='chat') addMsg('her', d.msg);
+            if(d.type==='control') {
+                if(d.action === 'play') window.AndroidInterface.control('play', 0);
+                if(d.action === 'pause') window.AndroidInterface.control('pause', 0);
+                if(d.action === 'seek') window.AndroidInterface.control('seek', d.time);
+            }
+            if(d.type==='play_url') handleLocalFileSelection(d.url);
+            
+            // YouTube Sync
+            if(d.type === 'yt_load') { switchMode('youtube'); ytPlayer.loadVideoById(d.id); }
+            if(d.type === 'yt_play') { switchMode('youtube'); ytPlayer.seekTo(d.time); ytPlayer.playVideo(); }
+            if(d.type === 'yt_pause') { ytPlayer.seekTo(d.time); ytPlayer.pauseVideo(); }
+        });
+    }
+
+    // --- Helper Functions ---
+    function showYTPopup() { document.getElementById('yt-popup').style.display = 'block'; }
+    function loadYTFromInput() {
+        const url = document.getElementById('yt-input').value;
+        const id = url.split('v=')[1]?.split('&')[0];
+        if(id) {
+            switchMode('youtube');
+            ytPlayer.loadVideoById(id);
+            if(conn?.open) conn.send({type:'yt_load', id: id});
+            document.getElementById('yt-popup').style.display = 'none';
+        }
+    }
+
+    function onYTStateChange(event) {
+        if(mode !== 'youtube') return;
+        const t = ytPlayer.getCurrentTime();
+        if(event.data === 1 && conn?.open) conn.send({type:'yt_play', time: t});
+        if(event.data === 2 && conn?.open) conn.send({type:'yt_pause', time: t});
+        setPlayState(event.data === 1);
+    }
+
+    function handleLocalFileSelection(url) {
+        switchMode('native');
+        if(conn?.open) conn.send({type:'play_url', url: url});
+    }
+
+    function formatTime(ms) { let s = Math.floor(ms/1000), m = Math.floor(s/60); return `${m}:${(s%60)<10?'0'+(s%60):(s%60)}`; }
+    function userSeeking(val) { isDragging = true; document.getElementById('curr-time').innerText = formatTime(val); }
+    function userFinishedSeek(val) {
+        isDragging = false;
+        if(mode==='native') {
+            window.AndroidInterface.control('seek', val);
+            if(conn?.open) conn.send({type:'control', action:'seek', time:val});
+        }
+    }
+    
+    function toggleNativeFullscreen() {
+        isLandscape = !isLandscape;
+        window.AndroidInterface.toggleRotation(isLandscape);
+        document.querySelector('.chat-container').style.display = isLandscape ? 'none' : 'flex';
+        document.getElementById('video-box').style.height = isLandscape ? '100%' : '40%';
+    }
+    function toggleTrack(t) { window.AndroidInterface.changeTrack(t); }
+    function send() { let t = document.getElementById('msgInput').value; if(t){ conn?.send({type:'chat', msg:t}); addMsg('me', t); document.getElementById('msgInput').value=''; }}
+    function addMsg(cls, t) { let d=document.createElement('div'); d.className=`msg ${cls}`; d.innerText=t; document.getElementById('chat').append(d); }
 </script>
 </body>
 </html>
