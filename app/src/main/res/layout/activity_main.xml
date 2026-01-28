@@ -1,21 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="#000000">
 
-    <androidx.media3.ui.PlayerView
-        android:id="@+id/player_view"
+    <FrameLayout
+        android:id="@+id/video_wrapper"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:resize_mode="fit"
-        app:use_controller="false" />
+        android:layout_height="0dp"
+        android:layout_weight="0.4">
+
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/player_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:resize_mode="fit"
+            app:use_controller="false"
+            android:background="#000000" />
+
+        <WebView
+            android:id="@+id/webview_video_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent" />
+    </FrameLayout>
 
     <WebView
-        android:id="@+id/webview"
+        android:id="@+id/webview_chat"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@android:color/transparent" />
+        android:layout_height="0dp"
+        android:layout_weight="0.6" />
 
-</FrameLayout>
+</LinearLayout>
