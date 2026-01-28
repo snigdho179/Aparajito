@@ -14,7 +14,6 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.widget.FrameLayout;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
@@ -32,7 +31,6 @@ public class MainActivity extends AppCompatActivity {
     private ValueCallback<Uri[]> mUploadMessage;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    // 1. Timeline Sync Engine
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
@@ -45,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    // 2. Modern File Picker (Android 13+ Compatible)
     private final ActivityResultLauncher<String> filePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.GetContent(),
             uri -> {
@@ -66,11 +63,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // 3. Initialize Native Player
+        // 1. Native Player (Always Fullscreen Background)
         player = new ExoPlayer.Builder(this).build();
         playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
-        playerView.setUseController(false); // HTML handles controls
+        playerView.setUseController(false); 
 
         player.addListener(new Player.Listener() {
             @Override
@@ -81,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 4. Setup Transparent WebView
+        // 2. WebView (Transparent Overlay)
         webView = findViewById(R.id.webview);
         webView.setBackgroundColor(Color.TRANSPARENT);
         
@@ -104,12 +101,12 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 5. The "Pro" Bridge Interface
+        // 3. Bridge Interface
         webView.addJavascriptInterface(new Object() {
             @JavascriptInterface
             public void playNative(String uri) {
                 runOnUiThread(() -> {
-                    playerView.setVisibility(View.VISIBLE); // Hybrid: Show Native
+                    playerView.setVisibility(View.VISIBLE);
                     playNative(uri);
                 });
             }
@@ -118,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
             public void hideNative() {
                 runOnUiThread(() -> {
                     player.pause();
-                    playerView.setVisibility(View.GONE); // Hybrid: Hide Native for YouTube
+                    playerView.setVisibility(View.GONE);
                 });
             }
 
@@ -145,14 +142,10 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     TrackSelectionParameters params = player.getTrackSelectionParameters();
                     if(type.equals("audio")) {
-                         // Fixes "No Audio" issues
-                         player.setTrackSelectionParameters(params.buildUpon()
-                                 .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false).build());
+                         player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false).build());
                     } else if (type.equals("sub")) {
-                        // FIXED: Correct way to toggle subtitles in Media3 1.2.1
                         boolean isDisabled = params.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT);
-                        player.setTrackSelectionParameters(params.buildUpon()
-                                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !isDisabled).build());
+                        player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !isDisabled).build());
                     }
                 });
             }
