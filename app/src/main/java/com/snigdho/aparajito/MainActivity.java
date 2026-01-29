@@ -19,10 +19,11 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.widget.FrameLayout;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.media3.common.C;
@@ -40,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean isNativeMode = false;
 
-    // Timeline Updater
+    // Timeline Sync
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
@@ -71,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 1. FIX NOTCH & FULLSCREEN
+        // 1. Force Notch Usage & Transparent Status Bar
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode = 
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
@@ -81,12 +82,11 @@ public class MainActivity extends AppCompatActivity {
         
         setContentView(R.layout.activity_main);
 
-        // 2. ASK FOR MIC PERMISSION
+        // 2. Permissions
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 123);
         }
 
-        // 3. Setup Native Player (Background Layer)
         player = new ExoPlayer.Builder(this).build();
         playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
@@ -101,9 +101,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 4. Setup WebView (Foreground Layer - Transparent)
         webView = findViewById(R.id.webview);
-        webView.setBackgroundColor(Color.TRANSPARENT); // Crucial for "Hybrid" feel
+        webView.setBackgroundColor(Color.TRANSPARENT);
         
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -155,13 +154,22 @@ public class MainActivity extends AppCompatActivity {
             @JavascriptInterface
             public void toggleRotation(boolean isLandscape) {
                 runOnUiThread(() -> {
+                    ConstraintLayout root = findViewById(R.id.main_root);
+                    ConstraintSet set = new ConstraintSet();
+                    set.clone(root);
+
                     if (isLandscape) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
                         hideSystemUI();
+                        // Player takes 100% height
+                        set.constrainPercentHeight(R.id.player_view, 1.0f);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                         showSystemUI();
+                        // Player takes 30% height
+                        set.constrainPercentHeight(R.id.player_view, 0.3f);
                     }
+                    set.applyTo(root);
                 });
             }
             
@@ -170,12 +178,14 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     TrackSelectionParameters params = player.getTrackSelectionParameters();
                     if(type.equals("audio")) {
-                        // Cycles audio tracks
-                         player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false).build());
+                        // Re-enable audio if disabled, logic to cycle tracks is complex but this ensures audio is ON
+                        player.setTrackSelectionParameters(params.buildUpon()
+                            .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false).build());
                     } else if (type.equals("sub")) {
-                        // Toggles subtitles
+                        // Toggle Subtitles
                         boolean isDisabled = params.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT);
-                        player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !isDisabled).build());
+                        player.setTrackSelectionParameters(params.buildUpon()
+                            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !isDisabled).build());
                     }
                 });
             }
@@ -184,11 +194,20 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("file:///android_asset/index.html");
     }
 
+    // Force Immersive Mode (Hides Navigation Bar so buttons are visible)
     private void hideSystemUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             getWindow().getInsetsController().hide(WindowInsets.Type.systemBars());
+            getWindow().getInsetsController().setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         } else {
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+            getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN 
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            );
         }
     }
 
