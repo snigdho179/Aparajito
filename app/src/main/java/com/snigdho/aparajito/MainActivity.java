@@ -10,9 +10,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
-import android.view.WindowInsets;
 import android.view.WindowInsetsController;
-import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
@@ -34,7 +32,6 @@ import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.common.TrackSelectionOverride;
-import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
@@ -50,16 +47,14 @@ public class MainActivity extends AppCompatActivity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean isNativeMode = false;
 
-    // Timeline Updater
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
             if (player != null && player.isPlaying() && isNativeMode) {
                 long current = player.getCurrentPosition();
                 long total = player.getDuration();
-                if (total != C.TIME_UNSET && total > 0) {
-                    webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
-                }
+                // Force update even if duration is weird, JS handles the rest
+                webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
             }
             handler.postDelayed(this, 250);
         }
@@ -83,16 +78,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 1. Initial State: Reserve space for status bar
+        // Default: Portrait Mode (Bars Visible, Reserved Space)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            getWindow().getAttributes().layoutInDisplayCutoutMode = 
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-        }
-        // Black bars for "Normal Mode"
         getWindow().setStatusBarColor(Color.BLACK);
-        getWindow().setNavigationBarColor(Color.BLACK);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         
         setContentView(R.layout.activity_main);
@@ -117,7 +105,6 @@ public class MainActivity extends AppCompatActivity {
 
         webView = findViewById(R.id.webview);
         webView.setBackgroundColor(Color.TRANSPARENT);
-        
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -175,13 +162,13 @@ public class MainActivity extends AppCompatActivity {
                     if (isLandscape) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
                         hideSystemUI();
-                        // Fullscreen: Disable reservation (video fills notch)
+                        // Fullscreen: Remove reservation (video fills notch)
                         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
                         set.constrainPercentHeight(R.id.player_view, 1.0f);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                         showSystemUI();
-                        // Portrait: Enable reservation (video below status bar)
+                        // Portrait: Add reservation (video below status bar)
                         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
                         set.constrainPercentHeight(R.id.player_view, 0.3f);
                     }
@@ -189,13 +176,11 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
             
-            // --- FIXED TRACK LIST LOGIC ---
             @JavascriptInterface
             public String getTrackList(String type) {
                 try {
                     int trackType = type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT;
                     JSONArray jsonArray = new JSONArray();
-                    
                     Tracks tracks = player.getCurrentTracks();
                     ImmutableList<Tracks.Group> groups = tracks.getGroups();
                     
@@ -227,15 +212,12 @@ public class MainActivity extends AppCompatActivity {
             public void selectTrack(String type, int groupIndex, int trackIndex) {
                 runOnUiThread(() -> {
                     int trackType = type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT;
-                    
                     if (groupIndex == -1) {
-                        // Disable
                         player.setTrackSelectionParameters(
                             player.getTrackSelectionParameters().buildUpon()
                                 .setTrackTypeDisabled(trackType, true).build());
                         return;
                     }
-
                     Tracks tracks = player.getCurrentTracks();
                     if (groupIndex < tracks.getGroups().size()) {
                         Tracks.Group group = tracks.getGroups().get(groupIndex);
