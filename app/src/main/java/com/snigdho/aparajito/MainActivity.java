@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.WindowManager; // <--- ADDED MISSING IMPORT
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -32,6 +33,7 @@ import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
@@ -54,7 +56,9 @@ public class MainActivity extends AppCompatActivity {
                 long current = player.getCurrentPosition();
                 long total = player.getDuration();
                 // Force update even if duration is weird, JS handles the rest
-                webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
+                if (total != C.TIME_UNSET && total > 0) {
+                    webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
+                }
             }
             handler.postDelayed(this, 250);
         }
@@ -80,6 +84,11 @@ public class MainActivity extends AppCompatActivity {
         
         // Default: Portrait Mode (Bars Visible, Reserved Space)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode = 
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         
