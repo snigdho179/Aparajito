@@ -81,14 +81,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 1. Allow Drawing Behind Bars (We control the reservation via XML/Java now)
+        // 1. Initial Setup: Allow drawing behind bars, but let XML control reservation
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode = 
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
-        // Set bars to transparent so content looks good when reserved
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -174,29 +173,23 @@ public class MainActivity extends AppCompatActivity {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
                         hideSystemUI();
                         
-                        // REMOVE RESERVATION: Content fills notch/system areas
+                        // FULLSCREEN: Remove reservation (Video fills notch)
                         root.setFitsSystemWindows(false); 
-                        
-                        // Video takes 100% height
                         set.constrainPercentHeight(R.id.player_view, 1.0f);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                         showSystemUI();
                         
-                        // APPLY RESERVATION: Content pads itself to avoid status bar
+                        // PORTRAIT: Apply reservation (Respects status bar)
                         root.setFitsSystemWindows(true);
-                        
-                        // Video takes 30% height
                         set.constrainPercentHeight(R.id.player_view, 0.3f);
                     }
-                    // Apply changes to layout
                     set.applyTo(root);
-                    // Force a layout pass to ensure system windows are respected immediately
-                    root.requestLayout();
+                    root.requestLayout(); // Force update
                 });
             }
             
-            // --- Track Logic ---
+            // --- FIX: Track List Logic ---
             @JavascriptInterface
             public String getTrackList(String type) {
                 try {
