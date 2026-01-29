@@ -11,7 +11,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -33,6 +32,7 @@ import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.common.TrackSelectionParameters;
+import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean isNativeMode = false;
 
-    // Timeline Sync (Fixed format to match JS)
+    // Timeline Sync
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
@@ -167,13 +167,13 @@ public class MainActivity extends AppCompatActivity {
                     if (isLandscape) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
                         hideSystemUI();
-                        // Remove top margin in fullscreen
+                        // Remove top margin in fullscreen to fill notch
                         params.topMargin = 0;
                         set.constrainPercentHeight(R.id.player_view, 1.0f);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                         showSystemUI();
-                        // Restore top margin for header
+                        // Restore top margin for header so video isn't hidden
                         params.topMargin = (int) (50 * getResources().getDisplayMetrics().density);
                         set.constrainPercentHeight(R.id.player_view, 0.3f);
                     }
@@ -200,7 +200,6 @@ public class MainActivity extends AppCompatActivity {
         ImmutableList<Tracks.Group> groups = tracks.getGroups();
         
         int currentGroupIndex = -1;
-        // Find current enabled group
         for (int i = 0; i < groups.size(); i++) {
             if (groups.get(i).getType() == trackType && groups.get(i).isSelected()) {
                 currentGroupIndex = i;
@@ -208,7 +207,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // Find next available group
         int nextGroupIndex = -1;
         for (int i = currentGroupIndex + 1; i < groups.size(); i++) {
             if (groups.get(i).getType() == trackType && groups.get(i).isSupported()) {
@@ -216,7 +214,6 @@ public class MainActivity extends AppCompatActivity {
                 break;
             }
         }
-        // Loop back to start if needed
         if (nextGroupIndex == -1) {
             for (int i = 0; i < groups.size(); i++) {
                 if (groups.get(i).getType() == trackType && groups.get(i).isSupported()) {
@@ -229,12 +226,12 @@ public class MainActivity extends AppCompatActivity {
         if (nextGroupIndex != -1) {
             player.setTrackSelectionParameters(
                 currentParams.buildUpon()
-                .setOverrideForType(new TrackSelectionParameters.TrackSelectionOverride(
+                .setOverrideForType(new TrackSelectionOverride(
                     groups.get(nextGroupIndex).getMediaTrackGroup(), 0))
                 .setTrackTypeDisabled(trackType, false)
                 .build());
         } else {
-            // No tracks? Toggle disable/enable
+            // No tracks or end of list? Toggle disable/enable
             boolean isDisabled = currentParams.disabledTrackTypes.contains(trackType);
             player.setTrackSelectionParameters(
                 currentParams.buildUpon().setTrackTypeDisabled(trackType, !isDisabled).build());
@@ -262,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
         player.play();
     }
 
-    // 3. FIX BACKGROUND PLAY
+    // 3. FIX BACKGROUND PLAY: Kill video when app closes
     @Override
     protected void onStop() {
         super.onStop();
