@@ -53,11 +53,8 @@
         
         #yt-popup, #track-menu { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 20px; border: 1px solid #444; border-radius: 10px; z-index: 100; width: 80%; }
         #yt-input { width: 100%; padding: 10px; margin-bottom: 10px; background: #222; color: #fff; border: 1px solid #444; }
-        
-        /* Track List Style */
         .track-item { padding: 12px; border-bottom: 1px solid #333; color: #ccc; cursor: pointer; font-size: 14px; }
         .track-item.selected { color: var(--accent); font-weight: bold; }
-        .track-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -170,7 +167,7 @@
     }
 
     function updateNativeTimeline(current, total) {
-        if (!isDragging && mode === 'native' && total > 0) {
+        if (!isDragging && mode === 'native') {
             const bar = document.getElementById('seek-bar');
             bar.max = total;
             bar.value = current;
@@ -179,7 +176,6 @@
         }
     }
 
-    // --- NEW: Open Track Menu ---
     function openTrackMenu(type) {
         if(mode !== 'native') return alert("Play a local video first.");
         const json = window.AndroidInterface.getTrackList(type);
@@ -188,7 +184,6 @@
         list.innerHTML = '';
         document.getElementById('track-title').innerText = type === 'audio' ? "Select Audio" : "Select Subtitle";
 
-        // Add "Off" option for subtitles
         if(type === 'sub') {
             const offDiv = document.createElement('div');
             offDiv.className = 'track-item';
