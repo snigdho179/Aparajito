@@ -26,12 +26,17 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.common.TrackSelectionParameters;
+import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
+import com.google.common.collect.ImmutableList;
 
 public class MainActivity extends AppCompatActivity {
     private ExoPlayer player;
@@ -41,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean isNativeMode = false;
 
-    // Timeline Sync
+    // Timeline Sync (Fixed format to match JS)
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
@@ -50,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
                 long total = player.getDuration();
                 webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
             }
-            handler.postDelayed(this, 500);
+            handler.postDelayed(this, 1000);
         }
     };
 
@@ -72,7 +77,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 1. Force Notch Usage & Transparent Status Bar
+        // 1. FIX NOTCH GAP (Aggressive Fullscreen)
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode = 
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
@@ -82,7 +88,6 @@ public class MainActivity extends AppCompatActivity {
         
         setContentView(R.layout.activity_main);
 
-        // 2. Permissions
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 123);
         }
@@ -157,66 +162,97 @@ public class MainActivity extends AppCompatActivity {
                     ConstraintLayout root = findViewById(R.id.main_root);
                     ConstraintSet set = new ConstraintSet();
                     set.clone(root);
+                    ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) playerView.getLayoutParams();
 
                     if (isLandscape) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
                         hideSystemUI();
-                        // Player takes 100% height
+                        // Remove top margin in fullscreen
+                        params.topMargin = 0;
                         set.constrainPercentHeight(R.id.player_view, 1.0f);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                         showSystemUI();
-                        // Player takes 30% height
+                        // Restore top margin for header
+                        params.topMargin = (int) (50 * getResources().getDisplayMetrics().density);
                         set.constrainPercentHeight(R.id.player_view, 0.3f);
                     }
+                    playerView.setLayoutParams(params);
                     set.applyTo(root);
                 });
             }
             
+            // NEW: Working Audio/Sub Cycler
             @JavascriptInterface
             public void changeTrack(String type) {
-                runOnUiThread(() -> {
-                    TrackSelectionParameters params = player.getTrackSelectionParameters();
-                    if(type.equals("audio")) {
-                        // Re-enable audio if disabled, logic to cycle tracks is complex but this ensures audio is ON
-                        player.setTrackSelectionParameters(params.buildUpon()
-                            .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false).build());
-                    } else if (type.equals("sub")) {
-                        // Toggle Subtitles
-                        boolean isDisabled = params.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT);
-                        player.setTrackSelectionParameters(params.buildUpon()
-                            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !isDisabled).build());
-                    }
-                });
+                runOnUiThread(() -> cycleTrack(type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT));
             }
+
         }, "AndroidInterface");
 
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    // Force Immersive Mode (Hides Navigation Bar so buttons are visible)
-    private void hideSystemUI() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            getWindow().getInsetsController().hide(WindowInsets.Type.systemBars());
-            getWindow().getInsetsController().setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+    // Helper to cycle tracks (Audio/Sub)
+    private void cycleTrack(int trackType) {
+        Tracks tracks = player.getCurrentTracks();
+        TrackSelectionParameters currentParams = player.getTrackSelectionParameters();
+        ImmutableList<Tracks.Group> groups = tracks.getGroups();
+        
+        int currentGroupIndex = -1;
+        // Find current enabled group
+        for (int i = 0; i < groups.size(); i++) {
+            if (groups.get(i).getType() == trackType && groups.get(i).isSelected()) {
+                currentGroupIndex = i;
+                break;
+            }
+        }
+
+        // Find next available group
+        int nextGroupIndex = -1;
+        for (int i = currentGroupIndex + 1; i < groups.size(); i++) {
+            if (groups.get(i).getType() == trackType && groups.get(i).isSupported()) {
+                nextGroupIndex = i;
+                break;
+            }
+        }
+        // Loop back to start if needed
+        if (nextGroupIndex == -1) {
+            for (int i = 0; i < groups.size(); i++) {
+                if (groups.get(i).getType() == trackType && groups.get(i).isSupported()) {
+                    nextGroupIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (nextGroupIndex != -1) {
+            player.setTrackSelectionParameters(
+                currentParams.buildUpon()
+                .setOverrideForType(new TrackSelectionParameters.TrackSelectionOverride(
+                    groups.get(nextGroupIndex).getMediaTrackGroup(), 0))
+                .setTrackTypeDisabled(trackType, false)
+                .build());
         } else {
-            getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_FULLSCREEN 
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            );
+            // No tracks? Toggle disable/enable
+            boolean isDisabled = currentParams.disabledTrackTypes.contains(trackType);
+            player.setTrackSelectionParameters(
+                currentParams.buildUpon().setTrackTypeDisabled(trackType, !isDisabled).build());
         }
     }
 
+    private void hideSystemUI() {
+        WindowInsetsControllerCompat windowInsetsController =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        windowInsetsController.setSystemBarsBehavior(
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars());
+    }
+
     private void showSystemUI() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            getWindow().getInsetsController().show(WindowInsets.Type.systemBars());
-        } else {
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
-        }
+        WindowInsetsControllerCompat windowInsetsController =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        windowInsetsController.show(WindowInsetsCompat.Type.systemBars());
     }
 
     private void playNative(String uri) {
@@ -224,5 +260,18 @@ public class MainActivity extends AppCompatActivity {
         player.setMediaItem(mediaItem);
         player.prepare();
         player.play();
+    }
+
+    // 3. FIX BACKGROUND PLAY
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (player != null) player.pause();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (player != null) player.release();
     }
 }
