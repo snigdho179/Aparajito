@@ -12,19 +12,21 @@
         body, html { margin: 0; background: transparent !important; color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         #app-ui { display: none; flex-direction: column; height: 100%; width: 100%; }
 
+        /* HEADER */
         header { height: 50px; background: var(--bg-sec); border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; flex-shrink: 0; z-index: 50; }
         .app-title { font-weight: bold; color: var(--accent); font-size: 18px; }
         .status-pill { font-size: 11px; padding: 5px 10px; background: #333; border-radius: 4px; color: #aaa; }
         .status-pill.green { background: #00c853; color: #000; font-weight: bold; }
-        .btn-exit { background: #333; color: #aaa; border: 1px solid #444; cursor: pointer; padding: 5px 10px; border-radius: 4px; }
 
+        /* VIDEO AREA */
         .video-container { position: relative; width: 100%; height: 30%; background: #000; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-bottom: 1px solid #333; }
-        .video-container.native-mode { background: transparent !important; }
-        #yt-player-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; z-index: 5; }
-        iframe { width: 100%; height: 100%; border: none; }
-
+        #yt-player-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; z-index: 10; }
+        
+        /* CONTROLS Overlay */
         .controls-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 10px; z-index: 20; display: flex; flex-direction: column; gap: 5px; transition: opacity 0.3s; }
         .controls-overlay.hidden { opacity: 0; pointer-events: none; }
+        .controls-overlay.yt-active { background: transparent; pointer-events: none; } 
+        .controls-overlay.yt-active .bottom-actions { pointer-events: auto; background: rgba(0,0,0,0.6); border-radius: 8px; padding: 5px; }
 
         .seek-wrapper { display: flex; align-items: center; gap: 10px; }
         .time-text { font-size: 12px; color: #ddd; min-width: 40px; }
@@ -32,203 +34,181 @@
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
         .bottom-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
-        .left-actions, .right-actions { display: flex; gap: 15px; }
-        .action-icon { color: white; font-size: 18px; cursor: pointer; opacity: 0.9; }
+        .action-icon { color: white; font-size: 18px; cursor: pointer; opacity: 0.9; padding: 5px; }
 
+        /* CHAT */
         .chat-container { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-sec); min-height: 0; z-index: 20; }
         .chat-history { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
-        .msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; max-width: 85%; }
+        .msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; max-width: 85%; word-wrap: break-word; }
         .msg.me { align-self: flex-end; background: var(--accent); color: white; }
-        .msg.her { align-self: flex-start; background: #333; color: #eee; border: 1px solid #333; }
-        .msg.sys { align-self: center; font-size: 10px; color: #444; margin: 5px 0; }
-        .chat-input-area { padding: 10px; background: #000; display: flex; gap: 10px; border-top: 1px solid #222; }
-        .chat-input { flex-grow: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #333; background: #111; color: white; font-size: 14px; }
-        .send-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); border: none; color: white; display: flex; align-items: center; justify-content: center; }
+        .msg.her { align-self: flex-start; background: #333; color: #eee; }
+        .msg.sys { align-self: center; font-size: 11px; color: #666; font-style: italic; }
 
+        /* POPUPS */
         #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: flex; align-items: center; justify-content: center; }
-        .start-box { text-align: center; width: 85%; max-width: 320px; background: #111; padding: 20px; border-radius: 12px; border: 1px solid #333; box-shadow: 0 0 20px rgba(233,30,99,0.2); }
-        .start-box h2 { color: var(--accent); margin: 0 0 5px 0; font-size: 24px; }
-        .start-box p { color: #666; font-size: 12px; margin-bottom: 15px; }
-        .input-room { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: white; text-align: center; border-radius: 6px; font-size: 16px; }
-        .btn-main { width: 100%; padding: 12px; margin-top: 10px; background: var(--accent); border: none; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 16px; }
-        .btn-guest { background: #333; border: 1px solid #555; }
-        .footer { font-size: 9px; color: #444; margin-top: 20px; letter-spacing: 1px; text-transform: uppercase; }
-
-        #yt-popup, #track-menu { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 20px; border: 1px solid #444; border-radius: 10px; z-index: 100; width: 80%; }
-        #yt-input { width: 100%; padding: 10px; margin-bottom: 10px; background: #222; color: #fff; border: 1px solid #444; }
-        .track-item { padding: 12px; border-bottom: 1px solid #333; color: #ccc; cursor: pointer; font-size: 14px; }
+        .start-box { text-align: center; width: 85%; max-width: 320px; background: #111; padding: 25px; border-radius: 15px; border: 1px solid #333; }
+        #yt-popup, #track-menu { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 20px; border: 1px solid #444; border-radius: 12px; z-index: 100; width: 85%; }
+        .track-item { padding: 12px; border-bottom: 1px solid #222; cursor: pointer; }
         .track-item.selected { color: var(--accent); font-weight: bold; }
+        .btn-main { width: 100%; padding: 12px; margin-top: 10px; background: var(--accent); border: none; color: white; font-weight: bold; border-radius: 8px; }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
         <div class="start-box">
-            <h2>Aparajito ❤️</h2>
-            <p>Enter Room Name:</p>
-            <input type="text" id="room-id" class="input-room" placeholder="e.g. love123">
+            <h2 style="color: var(--accent);">Aparajito ❤️</h2>
+            <input type="text" id="room-id" style="width:100%; padding:12px; margin:15px 0; background:#222; border:1px solid #444; color:white; border-radius:8px;" placeholder="Room Name">
             <button class="btn-main" onclick="enterApp('host')">Create Room</button>
-            <button class="btn-main btn-guest" onclick="enterApp('guest')">Join Room</button>
-            <div class="footer">CRAFTED BY SNIGDHO FOR ANUSKA</div>
+            <button class="btn-main" style="background:#333;" onclick="enterApp('guest')">Join Room</button>
         </div>
     </div>
 
     <div id="app-ui">
         <header>
             <div class="app-title">Aparajito ❤️</div>
-            <div style="display:flex; align-items: center;">
-                <div class="status-pill" id="conn-status">Disconnected</div>
-                <button class="btn-exit" onclick="location.reload()"><i class="fas fa-sign-out-alt"></i></button>
-            </div>
+            <div class="status-pill" id="conn-status">Disconnected</div>
         </header>
 
         <div class="video-container" id="video-box" onclick="resetTimer()">
             <div id="yt-player-container"><div id="yt-player"></div></div>
-
             <div class="controls-overlay" id="overlay">
-                <div class="seek-wrapper">
+                <div class="seek-wrapper" id="native-seek-ui">
                     <span class="time-text" id="curr-time">00:00</span>
                     <input type="range" id="seek-bar" min="0" value="0" step="1" oninput="userSeeking(this.value)" onchange="userFinishedSeek(this.value)">
                     <span class="time-text" id="total-time">00:00</span>
                 </div>
                 <div class="bottom-actions">
-                    <div class="left-actions">
-                         <div class="action-icon" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></div>
-                         <label class="action-icon"><i class="fas fa-folder-open"></i><input type="file" hidden id="fileInput" accept="video/*"></label>
-                         <div class="action-icon" onclick="showYTPopup()"><i class="fab fa-youtube"></i></div>
+                    <div style="display:flex; gap:20px;">
+                        <i class="fas fa-play action-icon" id="play-icon" onclick="togglePlay()"></i>
+                        <label class="action-icon"><i class="fas fa-folder-open"></i><input type="file" hidden id="fileInput" accept="video/*" onchange="localFilePicked(this)"></label>
+                        <i class="fab fa-youtube action-icon" onclick="document.getElementById('yt-popup').style.display='block'"></i>
                     </div>
-                    <div class="right-actions">
-                         <div class="action-icon" onclick="openTrackMenu('audio')"><i class="fas fa-music"></i></div>
-                         <div class="action-icon" onclick="openTrackMenu('sub')"><i class="fas fa-closed-captioning"></i></div>
-                         <div class="action-icon" onclick="toggleNativeFullscreen()"><i class="fas fa-expand"></i></div>
+                    <div style="display:flex; gap:20px;">
+                        <i class="fas fa-music action-icon" onclick="openTrackMenu('audio')"></i>
+                        <i class="fas fa-closed-captioning action-icon" onclick="openTrackMenu('sub')"></i>
+                        <i class="fas fa-expand action-icon" onclick="toggleNativeFullscreen()"></i>
                     </div>
                 </div>
             </div>
-             <div style="position:absolute; top:10px; right:10px; z-index:30;">
-                 <div class="action-icon" id="mic-btn" onclick="toggleMic()" style="background:rgba(0,0,0,0.5); padding:10px; border-radius:50%;"><i class="fas fa-microphone-slash"></i></div>
-             </div>
+            <div style="position:absolute; top:10px; right:10px; z-index:30;">
+                 <div class="action-icon" id="mic-btn" onclick="toggleMic()" style="background:rgba(0,0,0,0.5); padding:8px; border-radius:50%;"><i class="fas fa-microphone-slash"></i></div>
+            </div>
         </div>
 
         <div class="chat-container">
             <div class="chat-history" id="chat"></div>
-            <div class="chat-input-area">
-                <input type="text" id="msgInput" class="chat-input" placeholder="Type..." onkeypress="if(event.key==='Enter') send()">
-                <button class="send-btn" onclick="send()"><i class="fas fa-paper-plane"></i></button>
+            <div style="display:flex; padding:10px; background:#000; border-top:1px solid #222;">
+                <input type="text" id="msgInput" style="flex:1; padding:12px; background:#111; color:white; border:none; border-radius:25px;" placeholder="Message..." onkeypress="if(event.key==='Enter') send()">
+                <button onclick="send()" style="background:none; border:none; color:var(--accent); padding-left:10px;"><i class="fas fa-paper-plane" style="font-size:20px;"></i></button>
             </div>
         </div>
     </div>
 
     <div id="yt-popup">
-        <h4 style="color:white; margin:0 0 10px 0;">Paste YouTube Link</h4>
-        <input type="text" id="yt-input" placeholder="https://youtu.be/...">
-        <button class="btn-main" onclick="loadYTFromInput()" style="padding:10px;">Load Video</button>
-        <button class="btn-main btn-guest" onclick="document.getElementById('yt-popup').style.display='none'" style="padding:10px;">Cancel</button>
+        <h4 style="color:white; margin:0 0 10px 0;">YouTube Link</h4>
+        <input type="text" id="yt-input" style="width:100%; padding:10px; background:#222; border:1px solid #444; color:white;" placeholder="Paste URL...">
+        <button class="btn-main" onclick="loadYTFromInput()">Load Video</button>
+        <button class="btn-main" style="background:#333;" onclick="document.getElementById('yt-popup').style.display='none'">Cancel</button>
     </div>
 
     <div id="track-menu">
-        <h4 style="color:white; margin:0 0 10px 0;" id="track-title">Select Track</h4>
-        <div id="track-list" style="max-height: 150px; overflow-y: auto;"></div>
-        <button class="btn-main btn-guest" onclick="document.getElementById('track-menu').style.display='none'" style="padding:10px; margin-top:10px; width:100%;">Close</button>
+        <h4 id="track-title" style="color:white; margin-top:0;">Tracks</h4>
+        <div id="track-list" style="max-height:200px; overflow-y:auto;"></div>
+        <button class="btn-main" onclick="document.getElementById('track-menu').style.display='none'">Close</button>
     </div>
 
     <audio id="remoteAudio" autoplay></audio>
 
 <script>
-    let peer, conn, localStream, currentCall, isPlaying = false, isDragging = false;
-    let mode = 'none'; 
-    let ytPlayer, hideTimer;
+    let peer, conn, localStream, currentCall, isPlaying = false, isDragging = false, mode = 'none';
+    let ytPlayer, hideTimer, isLandscape = false;
 
+    // --- TIMELINE & UI ---
     function resetTimer() {
         document.getElementById('overlay').classList.remove('hidden');
         clearTimeout(hideTimer);
-        hideTimer = setTimeout(() => { if(isPlaying) document.getElementById('overlay').classList.add('hidden'); }, 3000);
+        if(isPlaying && mode === 'native') {
+            hideTimer = setTimeout(() => { document.getElementById('overlay').classList.add('hidden'); }, 3000);
+        }
     }
 
+    function formatTime(ms) {
+        let s = Math.floor(ms/1000), m = Math.floor(s/60);
+        s %= 60; return `${m}:${s<10?'0'+s:s}`;
+    }
+
+    // --- YOUTUBE API ---
     var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    
     function onYouTubeIframeAPIReady() {
-        ytPlayer = new YT.Player('yt-player', { height: '100%', width: '100%', playerVars: { 'autoplay': 0, 'controls': 0, 'rel': 0 }, events: { 'onStateChange': onYTStateChange } });
+        ytPlayer = new YT.Player('yt-player', { 
+            height: '100%', width: '100%', 
+            playerVars: { 'autoplay': 0, 'controls': 1, 'rel': 0 }, 
+            events: { 'onStateChange': onYTStateChange } 
+        });
     }
     
-    function onYTStateChange(event) {
+    function onYTStateChange(e) {
         if(mode !== 'youtube') return;
         const t = ytPlayer.getCurrentTime();
-        if(event.data === 1 && conn?.open) conn.send({type:'yt_play', time: t});
-        if(event.data === 2 && conn?.open) conn.send({type:'yt_pause', time: t});
-        setPlayState(event.data === 1);
+        if(e.data === YT.PlayerState.PLAYING && conn?.open) conn.send({type:'yt_play', time: t});
+        if(e.data === YT.PlayerState.PAUSED && conn?.open) conn.send({type:'yt_pause', time: t});
+        setPlayState(e.data === YT.PlayerState.PLAYING);
     }
 
-    function switchMode(newMode) {
-        mode = newMode;
-        if(mode === 'youtube') {
+    // --- MODES & PLAYER BRIDGE ---
+    function switchMode(m) {
+        mode = m;
+        if(m === 'youtube') {
             document.getElementById('yt-player-container').style.display = 'block';
-            document.querySelector('.video-container').classList.remove('native-mode');
-        } else if (mode === 'native') {
-            document.getElementById('yt-player-container').style.display = 'none';
-            if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
-            document.querySelector('.video-container').classList.add('native-mode');
-        }
-    }
-
-    function updateNativeTimeline(current, total) {
-        if (!isDragging && mode === 'native') {
-            const bar = document.getElementById('seek-bar');
-            bar.max = total;
-            bar.value = current;
-            document.getElementById('curr-time').innerText = formatTime(current);
-            document.getElementById('total-time').innerText = formatTime(total);
-        }
-    }
-
-    function openTrackMenu(type) {
-        if(mode !== 'native') return alert("Play a local video first.");
-        const json = window.AndroidInterface.getTrackList(type);
-        const tracks = JSON.parse(json);
-        const list = document.getElementById('track-list');
-        list.innerHTML = '';
-        document.getElementById('track-title').innerText = type === 'audio' ? "Select Audio" : "Select Subtitle";
-
-        if(type === 'sub') {
-            const offDiv = document.createElement('div');
-            offDiv.className = 'track-item';
-            offDiv.innerText = "Off";
-            offDiv.onclick = () => { window.AndroidInterface.selectTrack(type, -1, -1); document.getElementById('track-menu').style.display='none'; };
-            list.appendChild(offDiv);
-        }
-
-        if(tracks.length === 0) {
-            list.innerHTML = '<div style="color:#777; padding:10px;">No tracks found</div>';
+            document.getElementById('native-seek-ui').style.display = 'none';
+            document.getElementById('overlay').classList.add('yt-active');
+            window.AndroidInterface.hideNative();
         } else {
-            tracks.forEach(t => {
-                const div = document.createElement('div');
-                div.className = t.selected ? 'track-item selected' : 'track-item';
-                div.innerText = t.label;
-                div.onclick = () => {
-                    window.AndroidInterface.selectTrack(type, t.groupIndex, t.trackIndex);
-                    document.getElementById('track-menu').style.display='none';
-                };
-                list.appendChild(div);
-            });
+            document.getElementById('yt-player-container').style.display = 'none';
+            document.getElementById('native-seek-ui').style.display = 'flex';
+            document.getElementById('overlay').classList.remove('yt-active');
+            if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
         }
-        document.getElementById('track-menu').style.display = 'block';
     }
 
+    // Called from Java
+    function updateNativeTimeline(c, t) {
+        if (!isDragging && mode === 'native') {
+            const b = document.getElementById('seek-bar');
+            b.max = t; b.value = c;
+            document.getElementById('curr-time').innerText = formatTime(c);
+            document.getElementById('total-time').innerText = formatTime(t);
+        }
+    }
+
+    function setPlayState(p) {
+        isPlaying = p;
+        document.getElementById('play-icon').className = p ? 'fas fa-pause' : 'fas fa-play';
+        resetTimer();
+    }
+
+    // --- PEERJS LOGIC ---
     function enterApp(role) {
-        const room = document.getElementById('room-id').value.trim();
-        if(!room) return alert("Enter Room Name");
+        const rm = document.getElementById('room-id').value.trim();
+        if(!rm) return alert("Enter Room Name");
+        
         document.getElementById('start-screen').style.display = 'none';
         document.getElementById('app-ui').style.display = 'flex';
 
         if (role === 'host') {
-            peer = new Peer(room);
-            peer.on('open', (id) => { addMsg('sys', 'Room Created! Waiting...'); });
-            peer.on('error', (err) => { alert("Room Taken!"); location.reload(); });
-            peer.on('connection', (c) => { conn = c; setupReady(); });
+            peer = new Peer(rm);
+            peer.on('open', () => addMsg('sys', 'Room Created. Waiting...'));
+            peer.on('connection', c => { conn = c; setupReady(); });
+            peer.on('error', (err) => { alert("Room name taken!"); location.reload(); });
         } else {
             peer = new Peer();
-            peer.on('open', (id) => { conn = peer.connect(room); setupReady(); });
-            peer.on('error', (err) => { alert("Cannot find room."); location.reload(); });
+            peer.on('open', () => { conn = peer.connect(rm); setupReady(); });
+            peer.on('error', () => { alert("Connection Error"); location.reload(); });
         }
+
         peer.on('call', call => {
             currentCall = call; call.answer();
             call.on('stream', s => document.getElementById('remoteAudio').srcObject = s);
@@ -238,42 +218,80 @@
     function setupReady() {
         conn.on('open', () => {
             document.getElementById('conn-status').innerText = "Connected";
-            document.getElementById('conn-status').className = "status-pill green";
+            document.getElementById('conn-status').classList.add('green');
             addMsg('sys', 'Connected!');
         });
+        
         conn.on('data', d => {
             if(d.type==='chat') addMsg('her', d.msg);
+            if(d.type==='play_url') { switchMode('native'); /* Handled by Android auto-picker logic */}
+            if(d.type==='yt_load') { switchMode('youtube'); ytPlayer.loadVideoById(d.id); }
+            if(d.type==='yt_play') { ytPlayer.seekTo(d.time, true); ytPlayer.playVideo(); }
+            if(d.type==='yt_pause') ytPlayer.pauseVideo();
             if(d.type==='control') {
                 if(d.action === 'play') window.AndroidInterface.control('play', 0);
                 if(d.action === 'pause') window.AndroidInterface.control('pause', 0);
                 if(d.action === 'seek') window.AndroidInterface.control('seek', d.time);
             }
-            if(d.type==='play_url') handleLocalFileSelection(d.url);
-            if(d.type.startsWith('yt_')) {
-                if(mode !== 'youtube') switchMode('youtube');
-                if(d.type === 'yt_play') { ytPlayer.seekTo(d.time); ytPlayer.playVideo(); }
-                if(d.type === 'yt_pause') { ytPlayer.seekTo(d.time); ytPlayer.pauseVideo(); }
-                if(d.type === 'yt_load') { ytPlayer.loadVideoById(d.id); }
-            }
         });
     }
 
+    // --- USER ACTIONS ---
     function togglePlay() {
-        resetTimer();
         if(mode === 'native') {
             window.AndroidInterface.control(isPlaying ? 'pause' : 'play', 0);
             if(conn?.open) conn.send({type:'control', action: isPlaying ? 'pause' : 'play'});
-        } else {
+        } else if (mode === 'youtube') {
             if(ytPlayer.getPlayerState() === 1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
         }
     }
-    function setPlayState(playing) {
-        isPlaying = playing;
-        document.getElementById('play-icon').className = playing ? 'fas fa-pause' : 'fas fa-play';
-        if(playing) resetTimer();
+
+    function userSeeking(v) { isDragging = true; document.getElementById('curr-time').innerText = formatTime(v); }
+    function userFinishedSeek(v) {
+        isDragging = false;
+        if(mode === 'native') {
+            window.AndroidInterface.control('seek', v);
+            if(conn?.open) conn.send({type:'control', action:'seek', time:v});
+        }
     }
-    
-    let isLandscape = false;
+
+    function loadYTFromInput() {
+        const url = document.getElementById('yt-input').value;
+        const id = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.split('/').pop();
+        if(id) {
+            switchMode('youtube');
+            ytPlayer.loadVideoById(id);
+            if(conn?.open) conn.send({type:'yt_load', id: id});
+            document.getElementById('yt-popup').style.display='none';
+        }
+    }
+
+    function openTrackMenu(type) {
+        if(mode !== 'native') return alert("Play a local video first");
+        let tracks = JSON.parse(window.AndroidInterface.getTrackList(type));
+        const list = document.getElementById('track-list');
+        list.innerHTML = '';
+        
+        if(type === 'sub') {
+            let off = document.createElement('div');
+            off.className = 'track-item'; off.innerText = "Disable Subtitles";
+            off.onclick = () => { window.AndroidInterface.selectTrack(type, -1, -1); document.getElementById('track-menu').style.display='none'; };
+            list.appendChild(off);
+        }
+
+        tracks.forEach(t => {
+            let div = document.createElement('div');
+            div.className = t.selected ? 'track-item selected' : 'track-item';
+            div.innerText = t.label;
+            div.onclick = () => { 
+                window.AndroidInterface.selectTrack(type, t.groupIndex, t.trackIndex); 
+                document.getElementById('track-menu').style.display='none'; 
+            };
+            list.appendChild(div);
+        });
+        document.getElementById('track-menu').style.display = 'block';
+    }
+
     function toggleNativeFullscreen() {
         isLandscape = !isLandscape;
         window.AndroidInterface.toggleRotation(isLandscape);
@@ -282,62 +300,44 @@
         document.querySelector('.video-container').style.height = isLandscape ? '100%' : '30%';
     }
 
-    function handleLocalFileSelection(url) {
-        switchMode('native');
-        if(conn?.open) conn.send({type:'play_url', url: url});
-    }
-
-    function showYTPopup() { document.getElementById('yt-popup').style.display='block'; }
-    
-    function loadYTFromInput() {
-        const url = document.getElementById('yt-input').value;
-        const id = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
-        if(id) {
-            window.AndroidInterface.hideNative(); 
-            switchMode('youtube'); 
-            ytPlayer.loadVideoById(id);
-            if(conn?.open) conn.send({type:'yt_load', id: id});
-            document.getElementById('yt-popup').style.display='none';
+    function send() {
+        let input = document.getElementById('msgInput');
+        if(input.value.trim() && conn?.open) {
+            conn.send({type:'chat', msg: input.value});
+            addMsg('me', input.value);
+            input.value = '';
         }
     }
 
-    function send() { 
-        let t = document.getElementById('msgInput').value; 
-        if(t && conn && conn.open){ conn.send({type:'chat', msg:t}); addMsg('me', t); document.getElementById('msgInput').value=''; }
+    function addMsg(cls, text) {
+        let d = document.createElement('div');
+        d.className = `msg ${cls}`; d.innerText = text;
+        let chat = document.getElementById('chat');
+        chat.appendChild(d);
+        chat.scrollTop = chat.scrollHeight;
     }
-    function addMsg(cls, t) { let d=document.createElement('div'); d.className=`msg ${cls}`; d.innerText=t; document.getElementById('chat').append(d); }
-    function formatTime(ms) { 
-        if(isNaN(ms)) return "00:00";
-        let s = Math.floor(ms/1000), m = Math.floor(s/60); 
-        s = s % 60;
-        return `${m}:${s<10?'0'+s:s}`; 
-    }
-    function userSeeking(val) { isDragging = true; document.getElementById('curr-time').innerText = formatTime(val); }
-    function userFinishedSeek(val) { 
-        isDragging = false; 
-        if(mode==='native') { 
-            window.AndroidInterface.control('seek', val); 
-            if(conn?.open) conn.send({type:'control', action:'seek', time:val}); 
-        } 
-    }
-    
+
     async function toggleMic() {
         if(!localStream) {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({audio:true});
                 if(currentCall) {
-                    const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'audio');
-                    if(sender) sender.replaceTrack(localStream.getAudioTracks()[0]);
+                    let sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'audio');
+                    sender.replaceTrack(localStream.getAudioTracks()[0]);
                 }
-                document.getElementById('mic-btn').innerHTML = '<i class="fas fa-microphone"></i>';
-                document.getElementById('mic-btn').style.color = '#00c853';
+                document.getElementById('mic-btn').innerHTML = '<i class="fas fa-microphone" style="color:#00c853;"></i>';
             } catch(e) { alert("Mic Permission Denied"); }
         } else {
             localStream.getTracks().forEach(t => t.stop());
             localStream = null;
             document.getElementById('mic-btn').innerHTML = '<i class="fas fa-microphone-slash"></i>';
-            document.getElementById('mic-btn').style.color = '#fff';
         }
+    }
+
+    // This is triggered when the host picks a file via the Android picker
+    function handleLocalFileSelection(url) {
+        switchMode('native');
+        if(conn?.open) conn.send({type:'play_url', url: url});
     }
 </script>
 </body>
