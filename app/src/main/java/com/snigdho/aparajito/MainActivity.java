@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
                 long total = player.getDuration();
                 webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
             }
-            handler.postDelayed(this, 500);
+            handler.postDelayed(this, 200);
         }
     };
 
@@ -81,12 +81,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 1. Fullscreen Layout Logic
+        // 1. Allow Drawing Behind Bars (We control the reservation via XML/Java now)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode = 
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
+        // Set bars to transparent so content looks good when reserved
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -167,26 +169,34 @@ public class MainActivity extends AppCompatActivity {
                     ConstraintLayout root = findViewById(R.id.main_root);
                     ConstraintSet set = new ConstraintSet();
                     set.clone(root);
-                    ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) playerView.getLayoutParams();
 
                     if (isLandscape) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
                         hideSystemUI();
-                        params.topMargin = 0; // Ensure no margin in fullscreen
+                        
+                        // REMOVE RESERVATION: Content fills notch/system areas
+                        root.setFitsSystemWindows(false); 
+                        
+                        // Video takes 100% height
                         set.constrainPercentHeight(R.id.player_view, 1.0f);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                         showSystemUI();
-                        // 50dp Margin for Header in Portrait
-                        params.topMargin = (int) (50 * getResources().getDisplayMetrics().density); 
+                        
+                        // APPLY RESERVATION: Content pads itself to avoid status bar
+                        root.setFitsSystemWindows(true);
+                        
+                        // Video takes 30% height
                         set.constrainPercentHeight(R.id.player_view, 0.3f);
                     }
-                    playerView.setLayoutParams(params);
+                    // Apply changes to layout
                     set.applyTo(root);
+                    // Force a layout pass to ensure system windows are respected immediately
+                    root.requestLayout();
                 });
             }
             
-            // --- NEW: Get Tracks for Menu ---
+            // --- Track Logic ---
             @JavascriptInterface
             public String getTrackList(String type) {
                 try {
@@ -197,16 +207,19 @@ public class MainActivity extends AppCompatActivity {
                     for (Tracks.Group group : tracks.getGroups()) {
                         if (group.getType() == trackType) {
                             for (int i = 0; i < group.length; i++) {
-                                if (group.isTrackSupported(i)) {
-                                    Format format = group.getTrackFormat(i);
-                                    JSONObject obj = new JSONObject();
-                                    obj.put("groupIndex", tracks.getGroups().indexOf(group));
-                                    obj.put("trackIndex", i);
-                                    String label = format.label != null ? format.label : format.language;
-                                    obj.put("label", label != null ? label : "Unknown (" + (i+1) + ")");
-                                    obj.put("selected", group.isSelected());
-                                    jsonArray.put(obj);
-                                }
+                                Format format = group.getTrackFormat(i);
+                                JSONObject obj = new JSONObject();
+                                obj.put("groupIndex", tracks.getGroups().indexOf(group));
+                                obj.put("trackIndex", i);
+                                
+                                String label = "Unknown";
+                                if (format.label != null) label = format.label;
+                                else if (format.language != null) label = format.language;
+                                else label = "Track " + (i + 1);
+                                
+                                obj.put("label", label);
+                                obj.put("selected", group.isSelected());
+                                jsonArray.put(obj);
                             }
                         }
                     }
@@ -214,13 +227,11 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception e) { return "[]"; }
             }
 
-            // --- NEW: Select Track ---
             @JavascriptInterface
             public void selectTrack(String type, int groupIndex, int trackIndex) {
                 runOnUiThread(() -> {
                     int trackType = type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT;
                     
-                    // -1 means "Disable" (Off)
                     if (groupIndex == -1) {
                         player.setTrackSelectionParameters(
                             player.getTrackSelectionParameters().buildUpon()
@@ -229,13 +240,14 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     Tracks tracks = player.getCurrentTracks();
-                    Tracks.Group group = tracks.getGroups().get(groupIndex);
-                    
-                    player.setTrackSelectionParameters(
-                        player.getTrackSelectionParameters().buildUpon()
-                            .setTrackTypeDisabled(trackType, false)
-                            .setOverrideForType(new TrackSelectionOverride(group.getMediaTrackGroup(), trackIndex))
-                            .build());
+                    if (groupIndex < tracks.getGroups().size()) {
+                        Tracks.Group group = tracks.getGroups().get(groupIndex);
+                        player.setTrackSelectionParameters(
+                            player.getTrackSelectionParameters().buildUpon()
+                                .setTrackTypeDisabled(trackType, false)
+                                .setOverrideForType(new TrackSelectionOverride(group.getMediaTrackGroup(), trackIndex))
+                                .build());
+                    }
                 });
             }
 
@@ -247,7 +259,6 @@ public class MainActivity extends AppCompatActivity {
     private void hideSystemUI() {
         WindowInsetsControllerCompat windowInsetsController =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        // SWIPE TO SHOW BARS (Fixes "Not Respecting Notification Panel")
         windowInsetsController.setSystemBarsBehavior(
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars());
