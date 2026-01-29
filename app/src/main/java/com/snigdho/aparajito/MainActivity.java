@@ -50,15 +50,14 @@ public class MainActivity extends AppCompatActivity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean isNativeMode = false;
 
-    // Fixed Timeline Updater
+    // Timeline Updater
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
             if (player != null && player.isPlaying() && isNativeMode) {
                 long current = player.getCurrentPosition();
                 long total = player.getDuration();
-                // Ensure valid duration before sending
-                if (total > 0 && total != C.TIME_UNSET) {
+                if (total != C.TIME_UNSET && total > 0) {
                     webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
                 }
             }
@@ -84,14 +83,16 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 1. Initial State: PORTRAIT -> Reserve space for status bar
+        // 1. Initial State: Reserve space for status bar
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode = 
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
+        // Black bars for "Normal Mode"
         getWindow().setStatusBarColor(Color.BLACK);
+        getWindow().setNavigationBarColor(Color.BLACK);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         
         setContentView(R.layout.activity_main);
@@ -174,13 +175,13 @@ public class MainActivity extends AppCompatActivity {
                     if (isLandscape) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
                         hideSystemUI();
-                        // Fullscreen: Remove reservation (video fills notch)
-                        WindowCompat.setDecorFitsSystemWindows(getWindow(), false); 
+                        // Fullscreen: Disable reservation (video fills notch)
+                        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
                         set.constrainPercentHeight(R.id.player_view, 1.0f);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                         showSystemUI();
-                        // Portrait: Add reservation (video sits below status bar)
+                        // Portrait: Enable reservation (video below status bar)
                         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
                         set.constrainPercentHeight(R.id.player_view, 0.3f);
                     }
@@ -188,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
             
-            // --- FIXED: Reliable Track Listing ---
+            // --- FIXED TRACK LIST LOGIC ---
             @JavascriptInterface
             public String getTrackList(String type) {
                 try {
@@ -202,7 +203,6 @@ public class MainActivity extends AppCompatActivity {
                         Tracks.Group group = groups.get(gIndex);
                         if (group.getType() == trackType) {
                             for (int tIndex = 0; tIndex < group.length; tIndex++) {
-                                // Add track regardless of strict 'support' flag to ensure visibility
                                 Format format = group.getTrackFormat(tIndex);
                                 JSONObject obj = new JSONObject();
                                 obj.put("groupIndex", gIndex);
@@ -227,12 +227,15 @@ public class MainActivity extends AppCompatActivity {
             public void selectTrack(String type, int groupIndex, int trackIndex) {
                 runOnUiThread(() -> {
                     int trackType = type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT;
+                    
                     if (groupIndex == -1) {
+                        // Disable
                         player.setTrackSelectionParameters(
                             player.getTrackSelectionParameters().buildUpon()
                                 .setTrackTypeDisabled(trackType, true).build());
                         return;
                     }
+
                     Tracks tracks = player.getCurrentTracks();
                     if (groupIndex < tracks.getGroups().size()) {
                         Tracks.Group group = tracks.getGroups().get(groupIndex);
