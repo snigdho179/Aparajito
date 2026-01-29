@@ -18,7 +18,6 @@
         .status-pill.green { background: #00c853; color: #000; font-weight: bold; }
         .btn-exit { background: #333; color: #aaa; border: 1px solid #444; cursor: pointer; padding: 5px 10px; border-radius: 4px; }
 
-        /* VIDEO AREA 30% */
         .video-container { position: relative; width: 100%; height: 30%; background: #000; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-bottom: 1px solid #333; }
         .video-container.native-mode { background: transparent !important; }
         #yt-player-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; z-index: 5; }
@@ -51,8 +50,13 @@
         .input-room { width: 100%; padding: 12px; margin: 15px 0; background: #222; border: 1px solid #444; color: white; text-align: center; border-radius: 6px; font-size: 16px; }
         .btn-main { width: 100%; padding: 14px; margin-bottom: 10px; background: var(--accent); border: none; color: white; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 16px; }
         .btn-guest { background: #333; border: 1px solid #555; }
-        #yt-popup { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 20px; border: 1px solid #444; border-radius: 10px; z-index: 100; width: 80%; }
+        
+        #yt-popup, #track-menu { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 20px; border: 1px solid #444; border-radius: 10px; z-index: 100; width: 80%; }
         #yt-input { width: 100%; padding: 10px; margin-bottom: 10px; background: #222; color: #fff; border: 1px solid #444; }
+        
+        /* Track Menu List */
+        .track-item { padding: 10px; border-bottom: 1px solid #333; color: #ddd; cursor: pointer; }
+        .track-item.selected { color: var(--accent); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -91,8 +95,8 @@
                          <div class="action-icon" onclick="showYTPopup()"><i class="fab fa-youtube"></i></div>
                     </div>
                     <div class="right-actions">
-                         <div class="action-icon" onclick="toggleTrack('audio')"><i class="fas fa-music"></i></div>
-                         <div class="action-icon" onclick="toggleTrack('sub')"><i class="fas fa-closed-captioning"></i></div>
+                         <div class="action-icon" onclick="openTrackMenu('audio')"><i class="fas fa-music"></i></div>
+                         <div class="action-icon" onclick="openTrackMenu('sub')"><i class="fas fa-closed-captioning"></i></div>
                          <div class="action-icon" onclick="toggleNativeFullscreen()"><i class="fas fa-expand"></i></div>
                     </div>
                 </div>
@@ -117,6 +121,13 @@
         <button class="btn-main" onclick="loadYTFromInput()" style="padding:10px;">Load Video</button>
         <button class="btn-main btn-guest" onclick="document.getElementById('yt-popup').style.display='none'" style="padding:10px;">Cancel</button>
     </div>
+
+    <div id="track-menu">
+        <h4 style="color:white; margin:0 0 10px 0;" id="track-title">Select Track</h4>
+        <div id="track-list" style="max-height: 150px; overflow-y: auto;"></div>
+        <button class="btn-main btn-guest" onclick="document.getElementById('track-menu').style.display='none'" style="padding:10px; margin-top:10px; width:100%;">Close</button>
+    </div>
+
     <audio id="remoteAudio" autoplay></audio>
 
 <script>
@@ -157,7 +168,6 @@
         }
     }
 
-    // --- TIMELINE (Called by Android) ---
     function updateNativeTimeline(current, total) {
         if (!isDragging && mode === 'native') {
             const bar = document.getElementById('seek-bar');
@@ -166,6 +176,41 @@
             document.getElementById('curr-time').innerText = formatTime(current);
             document.getElementById('total-time').innerText = formatTime(total);
         }
+    }
+
+    // --- NEW: Open Track Menu ---
+    function openTrackMenu(type) {
+        if(mode !== 'native') return alert("Play a local video first.");
+        const json = window.AndroidInterface.getTrackList(type);
+        const tracks = JSON.parse(json);
+        const list = document.getElementById('track-list');
+        list.innerHTML = '';
+        document.getElementById('track-title').innerText = type === 'audio' ? "Select Audio" : "Select Subtitle";
+
+        // Add "Off" option for subtitles
+        if(type === 'sub') {
+            const offDiv = document.createElement('div');
+            offDiv.className = 'track-item';
+            offDiv.innerText = "Off";
+            offDiv.onclick = () => { window.AndroidInterface.selectTrack(type, -1, -1); document.getElementById('track-menu').style.display='none'; };
+            list.appendChild(offDiv);
+        }
+
+        if(tracks.length === 0) {
+            list.innerHTML = '<div style="color:#777; padding:10px;">No tracks found</div>';
+        } else {
+            tracks.forEach(t => {
+                const div = document.createElement('div');
+                div.className = t.selected ? 'track-item selected' : 'track-item';
+                div.innerText = t.label;
+                div.onclick = () => {
+                    window.AndroidInterface.selectTrack(type, t.groupIndex, t.trackIndex);
+                    document.getElementById('track-menu').style.display='none';
+                };
+                list.appendChild(div);
+            });
+        }
+        document.getElementById('track-menu').style.display = 'block';
     }
 
     function enterApp(role) {
@@ -228,8 +273,6 @@
         if(playing) resetTimer();
     }
     
-    function toggleTrack(t) { window.AndroidInterface.changeTrack(t); }
-    
     let isLandscape = false;
     function toggleNativeFullscreen() {
         isLandscape = !isLandscape;
@@ -267,7 +310,7 @@
         isDragging = false; 
         if(mode==='native') { 
             window.AndroidInterface.control('seek', val); 
-            if(conn?.open) conn.send({type:'control', action: 'seek', time: val}); 
+            if(conn?.open) conn.send({type:'control', action:'seek', time:val}); 
         } 
     }
     
