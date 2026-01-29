@@ -9,9 +9,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -38,16 +38,16 @@ public class MainActivity extends AppCompatActivity {
     private WebView webView;
     private ValueCallback<Uri[]> mUploadMessage;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private int screenHeight = 0;
+    private boolean isNativeMode = false;
 
-    // Timeline Sync
+    // Timeline Updater
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
-            if (player != null && player.isPlaying()) {
+            if (player != null && player.isPlaying() && isNativeMode) {
                 long current = player.getCurrentPosition();
                 long total = player.getDuration();
-                webView.evaluateJavascript("updateTimeline(" + current + ", " + total + ")", null);
+                webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
             }
             handler.postDelayed(this, 500);
         }
@@ -70,33 +70,27 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // 1. FIX NOTCH GAP (Fill entire screen)
+        
+        // 1. FIX NOTCH & FULLSCREEN
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            WindowManager.LayoutParams attrib = getWindow().getAttributes();
-            attrib.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().getAttributes().layoutInDisplayCutoutMode = 
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
-
-        setContentView(R.layout.activity_main);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        
+        setContentView(R.layout.activity_main);
 
-        // 2. FIX MIC PERMISSION (Stops the popup error)
+        // 2. ASK FOR MIC PERMISSION
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 1);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 123);
         }
 
-        // Calculate 40% Screen Height for Portrait Mode
-        DisplayMetrics displayMetrics = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        screenHeight = displayMetrics.heightPixels;
-
+        // 3. Setup Native Player (Background Layer)
         player = new ExoPlayer.Builder(this).build();
         playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
         playerView.setUseController(false);
-
-        // INITIAL SIZE: 40% height, Top Aligned
-        updatePlayerSize(false);
 
         player.addListener(new Player.Listener() {
             @Override
@@ -107,13 +101,15 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // 4. Setup WebView (Foreground Layer - Transparent)
         webView = findViewById(R.id.webview);
-        webView.setBackgroundColor(Color.TRANSPARENT);
+        webView.setBackgroundColor(Color.TRANSPARENT); // Crucial for "Hybrid" feel
         
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
 
         webView.setWebChromeClient(new WebChromeClient() {
@@ -132,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
             @JavascriptInterface
             public void playNative(String uri) {
                 runOnUiThread(() -> {
+                    isNativeMode = true;
                     playerView.setVisibility(View.VISIBLE);
                     playNative(uri);
                 });
@@ -140,6 +137,7 @@ public class MainActivity extends AppCompatActivity {
             @JavascriptInterface
             public void hideNative() {
                 runOnUiThread(() -> {
+                    isNativeMode = false;
                     player.pause();
                     playerView.setVisibility(View.GONE);
                 });
@@ -159,11 +157,9 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (isLandscape) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-                        updatePlayerSize(true);
                         hideSystemUI();
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-                        updatePlayerSize(false);
                         showSystemUI();
                     }
                 });
@@ -174,8 +170,10 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     TrackSelectionParameters params = player.getTrackSelectionParameters();
                     if(type.equals("audio")) {
+                        // Cycles audio tracks
                          player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false).build());
                     } else if (type.equals("sub")) {
+                        // Toggles subtitles
                         boolean isDisabled = params.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT);
                         player.setTrackSelectionParameters(params.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !isDisabled).build());
                     }
@@ -184,17 +182,6 @@ public class MainActivity extends AppCompatActivity {
         }, "AndroidInterface");
 
         webView.loadUrl("file:///android_asset/index.html");
-    }
-
-    // Helper to resizing player
-    private void updatePlayerSize(boolean isFullscreen) {
-        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) playerView.getLayoutParams();
-        if (isFullscreen) {
-            params.height = FrameLayout.LayoutParams.MATCH_PARENT;
-        } else {
-            params.height = (int) (screenHeight * 0.40); // 40% Height
-        }
-        playerView.setLayoutParams(params);
     }
 
     private void hideSystemUI() {
