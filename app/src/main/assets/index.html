@@ -10,37 +10,21 @@
         :root { --bg: #000; --bg-sec: #1a1a1a; --accent: #d81b60; --text: #e0e0e0; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
         body, html { margin: 0; background: transparent !important; color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
         #app-ui { display: none; flex-direction: column; height: 100%; width: 100%; }
 
-        /* HEADER */
-        header { 
-            height: 50px; background: var(--bg-sec); border-bottom: 1px solid #333;
-            display: flex; justify-content: space-between; align-items: center; padding: 0 15px;
-            flex-shrink: 0; z-index: 50;
-        }
+        header { height: 50px; background: var(--bg-sec); border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; flex-shrink: 0; z-index: 50; }
         .app-title { font-weight: bold; color: var(--accent); font-size: 18px; }
         .status-pill { font-size: 11px; padding: 5px 10px; background: #333; border-radius: 4px; color: #aaa; }
         .status-pill.green { background: #00c853; color: #000; font-weight: bold; }
         .btn-exit { background: #333; color: #aaa; border: 1px solid #444; cursor: pointer; padding: 5px 10px; border-radius: 4px; }
 
-        /* VIDEO AREA - 30% Height */
-        .video-container {
-            position: relative; width: 100%; height: 30%; background: #000;
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-            border-bottom: 1px solid #333;
-        }
+        /* VIDEO AREA 30% */
+        .video-container { position: relative; width: 100%; height: 30%; background: #000; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-bottom: 1px solid #333; }
         .video-container.native-mode { background: transparent !important; }
         #yt-player-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; z-index: 5; }
         iframe { width: 100%; height: 100%; border: none; }
 
-        /* CONTROLS */
-        .controls-overlay { 
-            position: absolute; bottom: 0; left: 0; width: 100%; 
-            background: linear-gradient(transparent, rgba(0,0,0,0.9)); 
-            padding: 10px; z-index: 20; display: flex; flex-direction: column; gap: 5px;
-            transition: opacity 0.3s;
-        }
+        .controls-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 10px; z-index: 20; display: flex; flex-direction: column; gap: 5px; transition: opacity 0.3s; }
         .controls-overlay.hidden { opacity: 0; pointer-events: none; }
 
         .seek-wrapper { display: flex; align-items: center; gap: 10px; }
@@ -52,7 +36,6 @@
         .left-actions, .right-actions { display: flex; gap: 15px; }
         .action-icon { color: white; font-size: 18px; cursor: pointer; opacity: 0.9; }
 
-        /* CHAT */
         .chat-container { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-sec); min-height: 0; z-index: 20; }
         .chat-history { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
         .msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; max-width: 85%; }
@@ -63,7 +46,6 @@
         .chat-input { flex-grow: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #333; background: #111; color: white; font-size: 14px; }
         .send-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); border: none; color: white; display: flex; align-items: center; justify-content: center; }
 
-        /* POPUPS & START */
         #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: flex; align-items: center; justify-content: center; }
         .start-box { text-align: center; width: 85%; max-width: 320px; background: #111; padding: 30px; border-radius: 12px; border: 1px solid #333; }
         .input-room { width: 100%; padding: 12px; margin: 15px 0; background: #222; border: 1px solid #444; color: white; text-align: center; border-radius: 6px; font-size: 16px; }
@@ -115,7 +97,6 @@
                     </div>
                 </div>
             </div>
-            
              <div style="position:absolute; top:10px; right:10px; z-index:30;">
                  <div class="action-icon" id="mic-btn" onclick="toggleMic()" style="background:rgba(0,0,0,0.5); padding:10px; border-radius:50%;"><i class="fas fa-microphone-slash"></i></div>
              </div>
@@ -176,6 +157,17 @@
         }
     }
 
+    // --- TIMELINE (Called by Android) ---
+    function updateNativeTimeline(current, total) {
+        if (!isDragging && mode === 'native') {
+            const bar = document.getElementById('seek-bar');
+            bar.max = total;
+            bar.value = current;
+            document.getElementById('curr-time').innerText = formatTime(current);
+            document.getElementById('total-time').innerText = formatTime(total);
+        }
+    }
+
     function enterApp(role) {
         const room = document.getElementById('room-id').value.trim();
         if(!room) return alert("Enter Room Name");
@@ -221,14 +213,6 @@
         });
     }
 
-    function updateNativeTimeline(current, total) {
-        if (!isDragging && mode === 'native') {
-            document.getElementById('seek-bar').max = total;
-            document.getElementById('seek-bar').value = current;
-            document.getElementById('curr-time').innerText = formatTime(current);
-            document.getElementById('total-time').innerText = formatTime(total);
-        }
-    }
     function togglePlay() {
         resetTimer();
         if(mode === 'native') {
@@ -245,6 +229,7 @@
     }
     
     function toggleTrack(t) { window.AndroidInterface.changeTrack(t); }
+    
     let isLandscape = false;
     function toggleNativeFullscreen() {
         isLandscape = !isLandscape;
@@ -278,7 +263,13 @@
     function addMsg(cls, t) { let d=document.createElement('div'); d.className=`msg ${cls}`; d.innerText=t; document.getElementById('chat').append(d); }
     function formatTime(ms) { let s = Math.floor(ms/1000), m = Math.floor(s/60); return `${m}:${(s%60)<10?'0'+(s%60):(s%60)}`; }
     function userSeeking(val) { isDragging = true; document.getElementById('curr-time').innerText = formatTime(val); }
-    function userFinishedSeek(val) { isDragging = false; if(mode==='native') { window.AndroidInterface.control('seek', val); } }
+    function userFinishedSeek(val) { 
+        isDragging = false; 
+        if(mode==='native') { 
+            window.AndroidInterface.control('seek', val); 
+            if(conn?.open) conn.send({type:'control', action: 'seek', time: val}); 
+        } 
+    }
     
     async function toggleMic() {
         if(!localStream) {
