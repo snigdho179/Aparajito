@@ -7,11 +7,37 @@
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --bg: #000; --bg-sec: #1a1a1a; --accent: #d81b60; --text: #e0e0e0; }
+        :root { --bg: #000; --bg-sec: #1a1a1a; --accent: #E91E63; --text: #e0e0e0; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
         body, html { margin: 0; background: transparent !important; color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         #app-ui { display: none; flex-direction: column; height: 100%; width: 100%; }
 
+        /* --- THE REQUESTED CARD UI --- */
+        #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: flex; align-items: center; justify-content: center; }
+        .start-box { 
+            text-align: center; width: 85%; max-width: 320px; 
+            background: #111; padding: 25px; border-radius: 12px; 
+            border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .start-box h2 { color: var(--accent); margin: 0 0 15px 0; font-size: 22px; }
+        .start-box p { color: #777; font-size: 12px; margin-bottom: 5px; }
+        
+        .input-room { 
+            width: 100%; padding: 12px; margin: 10px 0; 
+            background: #222; border: 1px solid #444; color: white; 
+            text-align: center; border-radius: 6px; font-size: 16px; 
+        }
+        
+        .btn-main { 
+            width: 100%; padding: 12px; margin-top: 10px; 
+            background: var(--accent); border: none; color: white; 
+            font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 16px; 
+        }
+        .btn-guest { background: #333; border: 1px solid #555; margin-top: 10px; }
+        
+        .footer-text { font-size: 9px; color: #444; margin-top: 20px; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* --- APP UI --- */
         header { height: 50px; background: var(--bg-sec); border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; flex-shrink: 0; z-index: 50; }
         .app-title { font-weight: bold; color: var(--accent); font-size: 18px; }
         .status-pill { font-size: 11px; padding: 5px 10px; background: #333; border-radius: 4px; color: #aaa; }
@@ -45,12 +71,6 @@
         .chat-input { flex-grow: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #333; background: #111; color: white; font-size: 14px; }
         .send-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); border: none; color: white; display: flex; align-items: center; justify-content: center; }
 
-        #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: flex; align-items: center; justify-content: center; }
-        .start-box { text-align: center; width: 85%; max-width: 320px; background: #111; padding: 30px; border-radius: 12px; border: 1px solid #333; }
-        .input-room { width: 100%; padding: 12px; margin: 15px 0; background: #222; border: 1px solid #444; color: white; text-align: center; border-radius: 6px; font-size: 16px; }
-        .btn-main { width: 100%; padding: 14px; margin-bottom: 10px; background: var(--accent); border: none; color: white; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 16px; }
-        .btn-guest { background: #333; border: 1px solid #555; }
-        
         #yt-popup, #track-menu { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 20px; border: 1px solid #444; border-radius: 10px; z-index: 100; width: 80%; }
         #yt-input { width: 100%; padding: 10px; margin-bottom: 10px; background: #222; color: #fff; border: 1px solid #444; }
         .track-item { padding: 12px; border-bottom: 1px solid #333; color: #ccc; cursor: pointer; font-size: 14px; }
@@ -61,10 +81,12 @@
 
     <div id="start-screen">
         <div class="start-box">
-            <h2 style="color:var(--accent); margin-top:0;">Aparajito ❤️</h2>
+            <h2>Aparajito ❤️</h2>
+            <p>Enter Room Name:</p>
             <input type="text" id="room-id" class="input-room" placeholder="e.g. love123">
             <button class="btn-main" onclick="enterApp('host')">Create Room</button>
             <button class="btn-main btn-guest" onclick="enterApp('guest')">Join Room</button>
+            <div class="footer-text">CRAFTED BY SNIGDHO FOR ANUSKA</div>
         </div>
     </div>
 
@@ -157,7 +179,7 @@
         mode = newMode;
         if(mode === 'youtube') {
             document.getElementById('yt-player-container').style.display = 'block';
-            window.AndroidInterface.hideNative();
+            window.AndroidInterface.hideNative(); // Hide native player
             document.querySelector('.video-container').classList.remove('native-mode');
         } else if (mode === 'native') {
             document.getElementById('yt-player-container').style.display = 'none';
@@ -167,7 +189,7 @@
     }
 
     function updateNativeTimeline(current, total) {
-        if (!isDragging && mode === 'native') {
+        if (!isDragging && mode === 'native' && total > 0) {
             const bar = document.getElementById('seek-bar');
             bar.max = total;
             bar.value = current;
@@ -218,7 +240,7 @@
         if (role === 'host') {
             peer = new Peer(room);
             peer.on('open', (id) => { addMsg('sys', 'Room Created! Waiting...'); });
-            peer.on('error', (err) => { alert("Room Name Taken!"); location.reload(); });
+            peer.on('error', (err) => { alert("Room Taken!"); location.reload(); });
             peer.on('connection', (c) => { conn = c; setupReady(); });
         } else {
             peer = new Peer();
@@ -288,7 +310,7 @@
         const url = document.getElementById('yt-input').value;
         const id = url.split('v=')[1]?.split('&')[0];
         if(id) {
-            switchMode('youtube');
+            switchMode('youtube'); // Crucial: Hides native player
             ytPlayer.loadVideoById(id);
             if(conn?.open) conn.send({type:'yt_load', id: id});
             document.getElementById('yt-popup').style.display='none';
