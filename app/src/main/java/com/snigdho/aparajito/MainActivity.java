@@ -17,7 +17,6 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
@@ -28,7 +27,6 @@ import androidx.core.content.ContextCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
-
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
@@ -37,11 +35,9 @@ import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
-
-import java.util.List;
+import com.google.common.collect.ImmutableList;
 
 public class MainActivity extends AppCompatActivity {
     private ExoPlayer player;
@@ -57,12 +53,11 @@ public class MainActivity extends AppCompatActivity {
             if (player != null && isNativeMode) {
                 long current = player.getCurrentPosition();
                 long total = player.getDuration();
-                // Ensure duration is valid before updating the SeekBar
                 if (total > 0 && total != C.TIME_UNSET) {
-                    webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
+                    webView.post(() -> webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null));
                 }
             }
-            handler.postDelayed(this, 500);
+            handler.postDelayed(this, 300);
         }
     };
 
@@ -80,7 +75,6 @@ public class MainActivity extends AppCompatActivity {
                     });
                 } else if (mUploadMessage != null) {
                     mUploadMessage.onReceiveValue(null);
-                    mUploadMessage = null;
                 }
             }
     );
@@ -88,16 +82,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // Portrait Mode: Reserve space for status bar
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            getWindow().getAttributes().layoutInDisplayCutoutMode = 
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().getAttributes().layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        
         setContentView(R.layout.activity_main);
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -111,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
         player.addListener(new Player.Listener() {
             @Override
             public void onIsPlayingChanged(boolean isPlaying) {
-                webView.evaluateJavascript("setPlayState(" + isPlaying + ")", null);
+                webView.post(() -> webView.evaluateJavascript("setPlayState(" + isPlaying + ")", null));
             }
         });
 
@@ -158,16 +148,13 @@ public class MainActivity extends AppCompatActivity {
                     ConstraintLayout root = findViewById(R.id.main_root);
                     ConstraintSet set = new ConstraintSet();
                     set.clone(root);
-
                     if (isLandscape) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-                        // Fullscreen: Remove status bar reservation to fill notch
                         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
                         hideSystemUI();
                         set.constrainPercentHeight(R.id.player_view, 1.0f);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-                        // Portrait: Restore status bar reservation
                         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
                         showSystemUI();
                         set.constrainPercentHeight(R.id.player_view, 0.3f);
@@ -182,20 +169,19 @@ public class MainActivity extends AppCompatActivity {
                     int trackType = type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT;
                     JSONArray jsonArray = new JSONArray();
                     Tracks tracks = player.getCurrentTracks();
-                    
-                    for (Tracks.Group group : tracks.getGroups()) {
+                    ImmutableList<Tracks.Group> groups = tracks.getGroups();
+                    for (int i = 0; i < groups.size(); i++) {
+                        Tracks.Group group = groups.get(i);
                         if (group.getType() == trackType) {
-                            for (int i = 0; i < group.length; i++) {
-                                Format format = group.getTrackFormat(i);
+                            for (int j = 0; j < group.length; j++) {
+                                Format format = group.getTrackFormat(j);
                                 JSONObject obj = new JSONObject();
-                                obj.put("groupIndex", tracks.getGroups().indexOf(group));
-                                obj.put("trackIndex", i);
-                                
+                                obj.put("groupIndex", i);
+                                obj.put("trackIndex", j);
                                 String label = (format.label != null) ? format.label : 
-                                               (format.language != null ? format.language : "Track " + (i + 1));
-                                
+                                               (format.language != null ? format.language : (type + " " + (j + 1)));
                                 obj.put("label", label);
-                                obj.put("selected", group.isTrackSelected(i));
+                                obj.put("selected", group.isTrackSelected(j));
                                 jsonArray.put(obj);
                             }
                         }
@@ -210,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
                     int trackType = type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT;
                     if (groupIndex == -1) {
                         player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
-                                .setTrackTypeDisabled(trackType, true).build());
+                            .setTrackTypeDisabled(trackType, true).build());
                     } else {
                         Tracks tracks = player.getCurrentTracks();
                         Tracks.Group group = tracks.getGroups().get(groupIndex);
@@ -244,16 +230,6 @@ public class MainActivity extends AppCompatActivity {
         player.play();
     }
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (player != null) player.pause();
-    }
-    
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        handler.removeCallbacks(progressUpdater);
-        if (player != null) player.release();
-    }
+    @Override protected void onStop() { super.onStop(); if (player != null) player.pause(); }
+    @Override protected void onDestroy() { super.onDestroy(); handler.removeCallbacks(progressUpdater); if (player != null) player.release(); }
 }
