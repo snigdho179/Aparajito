@@ -11,6 +11,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -29,14 +30,17 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.media3.common.C;
+import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
-import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 import com.google.common.collect.ImmutableList;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
     private ExoPlayer player;
@@ -55,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
                 long total = player.getDuration();
                 webView.evaluateJavascript("updateNativeTimeline(" + current + ", " + total + ")", null);
             }
-            handler.postDelayed(this, 1000);
+            handler.postDelayed(this, 500);
         }
     };
 
@@ -77,13 +81,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 1. FIX NOTCH GAP (Aggressive Fullscreen)
+        // 1. Fullscreen Layout Logic
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode = 
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
         getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         
         setContentView(R.layout.activity_main);
@@ -167,14 +172,13 @@ public class MainActivity extends AppCompatActivity {
                     if (isLandscape) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
                         hideSystemUI();
-                        // Remove top margin in fullscreen to fill notch
-                        params.topMargin = 0;
+                        params.topMargin = 0; // Ensure no margin in fullscreen
                         set.constrainPercentHeight(R.id.player_view, 1.0f);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                         showSystemUI();
-                        // Restore top margin for header so video isn't hidden
-                        params.topMargin = (int) (50 * getResources().getDisplayMetrics().density);
+                        // 50dp Margin for Header in Portrait
+                        params.topMargin = (int) (50 * getResources().getDisplayMetrics().density); 
                         set.constrainPercentHeight(R.id.player_view, 0.3f);
                     }
                     playerView.setLayoutParams(params);
@@ -182,10 +186,57 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
             
-            // NEW: Working Audio/Sub Cycler
+            // --- NEW: Get Tracks for Menu ---
             @JavascriptInterface
-            public void changeTrack(String type) {
-                runOnUiThread(() -> cycleTrack(type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT));
+            public String getTrackList(String type) {
+                try {
+                    int trackType = type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT;
+                    JSONArray jsonArray = new JSONArray();
+                    Tracks tracks = player.getCurrentTracks();
+                    
+                    for (Tracks.Group group : tracks.getGroups()) {
+                        if (group.getType() == trackType) {
+                            for (int i = 0; i < group.length; i++) {
+                                if (group.isTrackSupported(i)) {
+                                    Format format = group.getTrackFormat(i);
+                                    JSONObject obj = new JSONObject();
+                                    obj.put("groupIndex", tracks.getGroups().indexOf(group));
+                                    obj.put("trackIndex", i);
+                                    String label = format.label != null ? format.label : format.language;
+                                    obj.put("label", label != null ? label : "Unknown (" + (i+1) + ")");
+                                    obj.put("selected", group.isSelected());
+                                    jsonArray.put(obj);
+                                }
+                            }
+                        }
+                    }
+                    return jsonArray.toString();
+                } catch (Exception e) { return "[]"; }
+            }
+
+            // --- NEW: Select Track ---
+            @JavascriptInterface
+            public void selectTrack(String type, int groupIndex, int trackIndex) {
+                runOnUiThread(() -> {
+                    int trackType = type.equals("audio") ? C.TRACK_TYPE_AUDIO : C.TRACK_TYPE_TEXT;
+                    
+                    // -1 means "Disable" (Off)
+                    if (groupIndex == -1) {
+                        player.setTrackSelectionParameters(
+                            player.getTrackSelectionParameters().buildUpon()
+                                .setTrackTypeDisabled(trackType, true).build());
+                        return;
+                    }
+
+                    Tracks tracks = player.getCurrentTracks();
+                    Tracks.Group group = tracks.getGroups().get(groupIndex);
+                    
+                    player.setTrackSelectionParameters(
+                        player.getTrackSelectionParameters().buildUpon()
+                            .setTrackTypeDisabled(trackType, false)
+                            .setOverrideForType(new TrackSelectionOverride(group.getMediaTrackGroup(), trackIndex))
+                            .build());
+                });
             }
 
         }, "AndroidInterface");
@@ -193,54 +244,10 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    // Helper to cycle tracks (Audio/Sub)
-    private void cycleTrack(int trackType) {
-        Tracks tracks = player.getCurrentTracks();
-        TrackSelectionParameters currentParams = player.getTrackSelectionParameters();
-        ImmutableList<Tracks.Group> groups = tracks.getGroups();
-        
-        int currentGroupIndex = -1;
-        for (int i = 0; i < groups.size(); i++) {
-            if (groups.get(i).getType() == trackType && groups.get(i).isSelected()) {
-                currentGroupIndex = i;
-                break;
-            }
-        }
-
-        int nextGroupIndex = -1;
-        for (int i = currentGroupIndex + 1; i < groups.size(); i++) {
-            if (groups.get(i).getType() == trackType && groups.get(i).isSupported()) {
-                nextGroupIndex = i;
-                break;
-            }
-        }
-        if (nextGroupIndex == -1) {
-            for (int i = 0; i < groups.size(); i++) {
-                if (groups.get(i).getType() == trackType && groups.get(i).isSupported()) {
-                    nextGroupIndex = i;
-                    break;
-                }
-            }
-        }
-
-        if (nextGroupIndex != -1) {
-            player.setTrackSelectionParameters(
-                currentParams.buildUpon()
-                .setOverrideForType(new TrackSelectionOverride(
-                    groups.get(nextGroupIndex).getMediaTrackGroup(), 0))
-                .setTrackTypeDisabled(trackType, false)
-                .build());
-        } else {
-            // No tracks or end of list? Toggle disable/enable
-            boolean isDisabled = currentParams.disabledTrackTypes.contains(trackType);
-            player.setTrackSelectionParameters(
-                currentParams.buildUpon().setTrackTypeDisabled(trackType, !isDisabled).build());
-        }
-    }
-
     private void hideSystemUI() {
         WindowInsetsControllerCompat windowInsetsController =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        // SWIPE TO SHOW BARS (Fixes "Not Respecting Notification Panel")
         windowInsetsController.setSystemBarsBehavior(
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars());
@@ -259,7 +266,6 @@ public class MainActivity extends AppCompatActivity {
         player.play();
     }
 
-    // 3. FIX BACKGROUND PLAY: Kill video when app closes
     @Override
     protected void onStop() {
         super.onStop();
