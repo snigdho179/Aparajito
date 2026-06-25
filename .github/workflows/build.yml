@@ -24,6 +24,14 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Setup Gradle 8.4
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.4"
+
+      - name: Generate Gradle Wrapper JAR
+        run: gradle wrapper --gradle-version=8.4
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
