@@ -116,12 +116,12 @@ public class MainActivity extends AppCompatActivity {
 
     // Handle hardware back button for in-WebView navigation
     @Override
-    public void onKeyDown(int keyCode, KeyEvent event) {
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
             webView.goBack();
-        } else {
-            super.onKeyDown(keyCode, event);
+            return true;
         }
+        return super.onKeyDown(keyCode, event);
     }
 
     // Save WebView state on rotation
