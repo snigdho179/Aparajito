@@ -27,7 +27,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -37,7 +36,6 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progressBar;
-    private SwipeRefreshLayout swipeRefreshLayout;
     private FrameLayout fullscreenContainer;
 
     // Fullscreen video support
@@ -56,7 +54,6 @@ public class MainActivity extends AppCompatActivity {
 
         webView = findViewById(R.id.webView);
         progressBar = findViewById(R.id.progressBar);
-        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         fullscreenContainer = findViewById(R.id.fullscreenContainer);
 
         // Request dangerous permissions upfront
@@ -77,20 +74,23 @@ public class MainActivity extends AppCompatActivity {
         settings.setJavaScriptCanOpenWindowsAutomatically(true);
         settings.setSupportMultipleWindows(false);
 
+        // Hide WebView initially until page loads to show the loading animation clearly
+        webView.setVisibility(View.GONE);
+
         // WebViewClient: handle navigation
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 progressBar.setVisibility(View.VISIBLE);
-                swipeRefreshLayout.setRefreshing(false);
+                webView.setVisibility(View.GONE); // Hide while loading
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.GONE);
-                swipeRefreshLayout.setRefreshing(false);
+                webView.setVisibility(View.VISIBLE); // Show when loaded
             }
 
             @Override
@@ -117,13 +117,6 @@ public class MainActivity extends AppCompatActivity {
 
         // WebChromeClient: permissions, file chooser, fullscreen
         webView.setWebChromeClient(new WebChromeClient() {
-
-            // ── Progress bar ──────────────────────────────────────────────
-            @Override
-            public void onProgressChanged(WebView view, int newProgress) {
-                progressBar.setProgress(newProgress);
-                progressBar.setVisibility(newProgress == 100 ? View.GONE : View.VISIBLE);
-            }
 
             // ── Mic / Camera permission for WebRTC ────────────────────────
             @Override
@@ -181,13 +174,13 @@ public class MainActivity extends AppCompatActivity {
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT));
                 fullscreenContainer.setVisibility(View.VISIBLE);
-                swipeRefreshLayout.setVisibility(View.GONE);
+                webView.setVisibility(View.GONE);
             }
 
             @Override
             public void onHideCustomView() {
                 fullscreenContainer.setVisibility(View.GONE);
-                swipeRefreshLayout.setVisibility(View.VISIBLE);
+                webView.setVisibility(View.VISIBLE);
                 fullscreenContainer.removeView(customView);
 
                 getWindow().getDecorView().setSystemUiVisibility(originalSystemUiVisibility);
@@ -201,15 +194,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Pull-to-refresh
-        swipeRefreshLayout.setColorSchemeColors(
-                ContextCompat.getColor(this, R.color.accent_color)
-        );
-        swipeRefreshLayout.setOnRefreshListener(() -> webView.reload());
-
         // Load app
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState);
+            webView.setVisibility(View.VISIBLE); // Ensure visible on restore
         } else {
             webView.loadUrl(APP_URL);
         }
